@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Flame } from "lucide-react";
 import PrayerCard from "@/components/PrayerCard";
 import PrayerProgress from "@/components/PrayerProgress";
 import FloatingDecorations from "@/components/FloatingDecorations";
+import CelebrationBanner from "@/components/CelebrationBanner";
+import HijabiReminder from "@/components/HijabiReminder";
 
 const PRAYERS = [
   { name: "Fajr", time: "5:15 AM", color: "#5bb5a2" },
@@ -13,10 +15,15 @@ const PRAYERS = [
   { name: "Isha", time: "8:00 PM", color: "#ffd54f" },
 ];
 
+const CELEBRATION_MESSAGES = [
+  (name: string) => `MashaAllah! You completed ${name} 🌙`,
+  (name: string) => `Beautiful! ${name} is done ✨`,
+  (name: string) => `SubhanAllah! ${name} completed 💫`,
+];
+
 const getTodayKey = () => new Date().toISOString().split("T")[0];
 
 const getHijriDate = () => {
-  // Simple Hijri approximation
   const today = new Date();
   const options: Intl.DateTimeFormatOptions = { calendar: "islamic-umalqura" as any, day: "numeric", month: "long", year: "numeric" };
   try {
@@ -28,7 +35,7 @@ const getHijriDate = () => {
 
 const Index = () => {
   const todayKey = getTodayKey();
-  
+
   const [completed, setCompleted] = useState<Record<string, boolean>>(() => {
     const saved = localStorage.getItem("namaz-today");
     if (saved) {
@@ -44,6 +51,12 @@ const Index = () => {
   });
 
   const [streak, setStreak] = useState(0);
+  const [celebration, setCelebration] = useState<{ message: string; isFullDay: boolean } | null>(null);
+
+  const completedCount = PRAYERS.filter((p) => completed[p.name]).length;
+
+  // Find next uncompleted prayer
+  const nextPrayer = PRAYERS.find((p) => !completed[p.name])?.name ?? null;
 
   useEffect(() => {
     localStorage.setItem("namaz-today", JSON.stringify({ date: todayKey, prayers: completed }));
@@ -70,10 +83,26 @@ const Index = () => {
   }, [completed]);
 
   const togglePrayer = (name: string) => {
-    setCompleted((prev) => ({ ...prev, [name]: !prev[name] }));
+    const wasCompleted = completed[name];
+    const newCompleted = { ...completed, [name]: !wasCompleted };
+    setCompleted(newCompleted);
+
+    if (!wasCompleted) {
+      const newCount = PRAYERS.filter((p) => newCompleted[p.name]).length;
+      if (newCount === 5) {
+        setCelebration({
+          message: "Alhamdulillah! You completed all 5 prayers today 🤲✨",
+          isFullDay: true,
+        });
+      } else {
+        const msgFn = CELEBRATION_MESSAGES[Math.floor(Math.random() * CELEBRATION_MESSAGES.length)];
+        setCelebration({ message: msgFn(name), isFullDay: false });
+      }
+    }
   };
 
-  const completedCount = PRAYERS.filter((p) => completed[p.name]).length;
+  const hideCelebration = useCallback(() => setCelebration(null), []);
+
   const hijri = getHijriDate();
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
@@ -85,6 +114,12 @@ const Index = () => {
   return (
     <div className="relative min-h-screen pb-20">
       <FloatingDecorations />
+      <CelebrationBanner
+        message={celebration?.message ?? ""}
+        visible={!!celebration}
+        onHide={hideCelebration}
+        isFullDay={celebration?.isFullDay}
+      />
       <div className="container mx-auto px-4 py-6 relative z-10">
         {/* Header */}
         <motion.div
@@ -99,6 +134,9 @@ const Index = () => {
           {hijri && <p className="text-sm text-islamic-gold font-medium mt-1">{hijri}</p>}
         </motion.div>
 
+        {/* Hijabi Reminder */}
+        <HijabiReminder nextPrayer={nextPrayer} />
+
         {/* Progress ring */}
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
@@ -109,17 +147,25 @@ const Index = () => {
           <div className="relative w-24 h-24">
             <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
               <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--muted))" strokeWidth="8" />
-              <circle
+              <motion.circle
                 cx="50" cy="50" r="42" fill="none"
                 stroke="hsl(var(--islamic-gold))"
                 strokeWidth="8"
                 strokeLinecap="round"
-                strokeDasharray={`${(completedCount / 5) * 264} 264`}
-                className="transition-all duration-700"
+                initial={false}
+                animate={{ strokeDasharray: `${(completedCount / 5) * 264} 264` }}
+                transition={{ duration: 0.7, ease: "easeOut" }}
               />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-2xl font-bold">{completedCount}/5</span>
+              <motion.span
+                key={completedCount}
+                initial={{ scale: 1.3 }}
+                animate={{ scale: 1 }}
+                className="text-2xl font-bold"
+              >
+                {completedCount}/5
+              </motion.span>
             </div>
           </div>
           {streak > 0 && (
@@ -144,6 +190,7 @@ const Index = () => {
               onToggle={() => togglePrayer(prayer.name)}
               index={i}
               color={prayer.color}
+              isNext={prayer.name === nextPrayer}
             />
           ))}
         </div>
