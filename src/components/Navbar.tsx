@@ -19,11 +19,11 @@ const Navbar = () => {
     >
       <div className="container mx-auto px-4 flex items-center justify-between h-16">
         <Link to="/" className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-full islamic-gradient flex items-center justify-center">
+          <div className="w-9 h-9 rounded-full bg-islamic-pink flex items-center justify-center">
             <span className="text-primary-foreground text-lg">☪</span>
           </div>
           <span className="font-quicksand font-bold text-lg text-gradient-islamic hidden sm:block">
-            Noor Kids
+            JannahPath
           </span>
         </Link>
 
