@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Flame } from "lucide-react";
 import PrayerCard from "@/components/PrayerCard";
 import PrayerProgress from "@/components/PrayerProgress";
+import ProgressSoFar from "@/components/ProgressSoFar";
 import FloatingDecorations from "@/components/FloatingDecorations";
 import CelebrationBanner from "@/components/CelebrationBanner";
 import HijabiReminder from "@/components/HijabiReminder";
