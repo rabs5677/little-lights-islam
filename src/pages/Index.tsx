@@ -164,7 +164,7 @@ const Index = () => {
         </motion.div>
 
         {/* Hijabi Reminder */}
-        <HijabiReminder nextPrayer={nextPrayer} />
+        <HijabiReminder nextPrayer={nextPrayer} missedPrayers={missedPrayers} />
 
         {/* Progress ring */}
         <motion.div

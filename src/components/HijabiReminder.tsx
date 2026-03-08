@@ -2,17 +2,27 @@ import { motion, AnimatePresence } from "framer-motion";
 
 interface HijabiReminderProps {
   nextPrayer: string | null;
+  missedPrayers?: string[];
 }
 
-const HijabiReminder = ({ nextPrayer }: HijabiReminderProps) => {
-  if (!nextPrayer) return null;
+const HijabiReminder = ({ nextPrayer, missedPrayers = [] }: HijabiReminderProps) => {
+  if (!nextPrayer && missedPrayers.length === 0) return null;
 
-  const messages = [
-    `Don't forget to pray ${nextPrayer} 🌙\nWe're cheering for you!`,
-    `You're doing great!\nLet's continue with ${nextPrayer}.`,
-    `Keep going! ${nextPrayer} is next 💫`,
-  ];
-  const message = messages[nextPrayer.length % messages.length];
+  const mainMessages = nextPrayer
+    ? [
+        `Don't forget to pray ${nextPrayer} 🌙\nWe're cheering for you!`,
+        `You're doing great!\nLet's continue with ${nextPrayer}.`,
+        `Keep going! ${nextPrayer} is next 💫`,
+      ]
+    : [`MashaAllah! All prayers done ✨`];
+  const mainMsg = mainMessages[(nextPrayer?.length ?? 0) % mainMessages.length];
+
+  const qazaMsg =
+    missedPrayers.length > 0
+      ? `\nDon't forget Qaza for ${missedPrayers.join(", ")}.`
+      : "";
+
+  const message = mainMsg + qazaMsg;
 
   return (
     <AnimatePresence>
