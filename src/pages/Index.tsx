@@ -55,8 +55,37 @@ const Index = () => {
 
   const completedCount = PRAYERS.filter((p) => completed[p.name]).length;
 
-  // Find next uncompleted prayer
-  const nextPrayer = PRAYERS.find((p) => !completed[p.name])?.name ?? null;
+  // Time-based prayer detection
+  const parseTime = (t: string) => {
+    const [time, period] = t.split(" ");
+    let [h, m] = time.split(":").map(Number);
+    if (period === "PM" && h !== 12) h += 12;
+    if (period === "AM" && h === 12) h = 0;
+    return h * 60 + m;
+  };
+
+  const getCurrentPrayerIndex = () => {
+    const now = new Date();
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    for (let i = PRAYERS.length - 1; i >= 0; i--) {
+      if (nowMin >= parseTime(PRAYERS[i].time)) return i;
+    }
+    return 0; // before Fajr, show Fajr
+  };
+
+  const currentIdx = getCurrentPrayerIndex();
+  // Find current or next prayer based on time (not completion order)
+  let nextPrayer: string | null = null;
+  if (!completed[PRAYERS[currentIdx].name]) {
+    nextPrayer = PRAYERS[currentIdx].name;
+  } else {
+    // Current is done, find next uncompleted from current onwards
+    const future = PRAYERS.slice(currentIdx + 1).find((p) => !completed[p.name]);
+    nextPrayer = future?.name ?? null;
+  }
+
+  // Find missed (Qaza) prayers: before current time and not completed
+  const missedPrayers = PRAYERS.slice(0, currentIdx).filter((p) => !completed[p.name]).map((p) => p.name);
 
   useEffect(() => {
     localStorage.setItem("namaz-today", JSON.stringify({ date: todayKey, prayers: completed }));
