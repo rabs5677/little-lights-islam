@@ -3,8 +3,8 @@
   "short_name": "JannahPath",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f8fbfd",
-  "theme_color": "#74bfc0",
+  "background_color": "#fff7fb",
+  "theme_color": "#d88fb3",
   "orientation": "portrait",
   "icons": [
     {
