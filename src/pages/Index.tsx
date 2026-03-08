@@ -226,8 +226,9 @@ const Index = () => {
         </div>
 
         {/* Progress */}
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-3xl mx-auto space-y-6">
           <PrayerProgress history={history} />
+          <ProgressSoFar history={history} />
         </div>
       </div>
     </div>
