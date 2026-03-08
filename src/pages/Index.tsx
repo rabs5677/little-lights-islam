@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Flame } from "lucide-react";
 import PrayerCard from "@/components/PrayerCard";
 import PrayerProgress from "@/components/PrayerProgress";
+import ProgressSoFar from "@/components/ProgressSoFar";
 import FloatingDecorations from "@/components/FloatingDecorations";
 import CelebrationBanner from "@/components/CelebrationBanner";
 import HijabiReminder from "@/components/HijabiReminder";
@@ -225,8 +226,9 @@ const Index = () => {
         </div>
 
         {/* Progress */}
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-3xl mx-auto space-y-6">
           <PrayerProgress history={history} />
+          <ProgressSoFar history={history} />
         </div>
       </div>
     </div>
