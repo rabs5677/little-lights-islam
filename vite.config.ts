@@ -18,36 +18,35 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
-      injectRegister: "auto",
-      includeAssets: ["icon-192.png", "icon-512.png"],
+      includeAssets: ["favicon.ico", "apple-touch-icon.png"],
       manifest: {
         name: "JannahPath",
         short_name: "JannahPath",
-        description: "An Islamic prayer, dua, and Quran companion app",
         start_url: "/",
         display: "standalone",
-        background_color: "#fff7fb",
-        theme_color: "#d88fb3",
-        orientation: "portrait",
+        background_color: "#E11584",
+        theme_color: "#E11584",
         icons: [
           {
-            src: "/icon-192.png",
+            src: "/pwa-192x192.png",
             sizes: "192x192",
             type: "image/png",
           },
           {
-            src: "/icon-512.png",
+            src: "/pwa-512x512.png",
             sizes: "512x512",
             type: "image/png",
+          },
+          {
+            src: "/pwa-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "any maskable",
           },
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,json}"],
-        navigateFallback: "/index.html",
-      },
-      devOptions: {
-        enabled: true,
+        maximumFileSizeToCacheInBytes: 3000000,
       },
     }),
   ].filter(Boolean),
