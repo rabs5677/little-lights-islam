@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { Moon, BookOpen, HandHeart } from "lucide-react";
 import { motion } from "framer-motion";
+import logo from "@/assets/jannahpath-logo.png";
 
 const navItems = [
   { path: "/", label: "Home", icon: Moon },
