@@ -301,7 +301,7 @@ const QuranReader = () => {
                             })}
                           </div>
                         </div>
-                      )))}
+                      ))}
                     </div>
                   ) : (
                     /* === Mushaf mode === */
