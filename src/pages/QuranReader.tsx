@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
-import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from "framer-motion";
+import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { ArrowLeft, Bookmark, BookOpen, Eye, EyeOff, Loader2 } from "lucide-react";
 import FloatingDecorations from "@/components/FloatingDecorations";
 
