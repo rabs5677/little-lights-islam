@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Flame } from "lucide-react";
+import { Flame, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import PrayerCard from "@/components/PrayerCard";
 import PrayerProgress from "@/components/PrayerProgress";
 import ProgressSoFar from "@/components/ProgressSoFar";
@@ -22,7 +22,8 @@ const CELEBRATION_MESSAGES = [
   (name: string) => `SubhanAllah! ${name} completed 💫`,
 ];
 
-const getTodayKey = () => new Date().toISOString().split("T")[0];
+const getDateKey = (d: Date) => d.toISOString().split("T")[0];
+const getTodayKey = () => getDateKey(new Date());
 
 const getHijriDate = () => {
   const today = new Date();
@@ -34,72 +35,65 @@ const getHijriDate = () => {
   }
 };
 
+const parseTime = (t: string) => {
+  const [time, period] = t.split(" ");
+  let [h, m] = time.split(":").map(Number);
+  if (period === "PM" && h !== 12) h += 12;
+  if (period === "AM" && h === 12) h = 0;
+  return h * 60 + m;
+};
+
+const getCurrentPrayerIndex = () => {
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  for (let i = PRAYERS.length - 1; i >= 0; i--) {
+    if (nowMin >= parseTime(PRAYERS[i].time)) return i;
+  }
+  return 0;
+};
+
 const Index = () => {
   const todayKey = getTodayKey();
 
-  const [completed, setCompleted] = useState<Record<string, boolean>>(() => {
-    const saved = localStorage.getItem("namaz-today");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed.date === todayKey) return parsed.prayers;
-    }
-    return {};
-  });
+  // Selected date for viewing/editing
+  const [selectedDate, setSelectedDate] = useState<string>(todayKey);
+  const isToday = selectedDate === todayKey;
 
   const [history, setHistory] = useState<Record<string, Record<string, boolean>>>(() => {
     const saved = localStorage.getItem("namaz-history");
     return saved ? JSON.parse(saved) : {};
   });
 
+  // Current day's completed prayers derived from history
+  const completed = history[selectedDate] || {};
+
   const [streak, setStreak] = useState(0);
   const [celebration, setCelebration] = useState<{ message: string; isFullDay: boolean } | null>(null);
 
   const completedCount = PRAYERS.filter((p) => completed[p.name]).length;
 
-  // Time-based prayer detection
-  const parseTime = (t: string) => {
-    const [time, period] = t.split(" ");
-    let [h, m] = time.split(":").map(Number);
-    if (period === "PM" && h !== 12) h += 12;
-    if (period === "AM" && h === 12) h = 0;
-    return h * 60 + m;
-  };
-
-  const getCurrentPrayerIndex = () => {
-    const now = new Date();
-    const nowMin = now.getHours() * 60 + now.getMinutes();
-    for (let i = PRAYERS.length - 1; i >= 0; i--) {
-      if (nowMin >= parseTime(PRAYERS[i].time)) return i;
-    }
-    return 0; // before Fajr, show Fajr
-  };
-
   const currentIdx = getCurrentPrayerIndex();
-  // Find current or next prayer based on time (not completion order)
-  let nextPrayer: string | null = null;
-  if (!completed[PRAYERS[currentIdx].name]) {
-    nextPrayer = PRAYERS[currentIdx].name;
-  } else {
-    // Current is done, find next uncompleted from current onwards
+
+  // Only show time-based reminders for today
+  const nextPrayer = useMemo(() => {
+    if (!isToday) return null;
+    if (!completed[PRAYERS[currentIdx].name]) return PRAYERS[currentIdx].name;
     const future = PRAYERS.slice(currentIdx + 1).find((p) => !completed[p.name]);
-    nextPrayer = future?.name ?? null;
-  }
+    return future?.name ?? null;
+  }, [isToday, completed, currentIdx]);
 
-  // Find missed (Qaza) prayers: before current time and not completed
-  const missedPrayers = PRAYERS.slice(0, currentIdx).filter((p) => !completed[p.name]).map((p) => p.name);
+  const missedPrayers = useMemo(() => {
+    if (!isToday) return [];
+    return PRAYERS.slice(0, currentIdx).filter((p) => !completed[p.name]).map((p) => p.name);
+  }, [isToday, completed, currentIdx]);
 
+  // Calculate streak whenever history changes
   useEffect(() => {
-    localStorage.setItem("namaz-today", JSON.stringify({ date: todayKey, prayers: completed }));
-    const newHistory = { ...history, [todayKey]: completed };
-    setHistory(newHistory);
-    localStorage.setItem("namaz-history", JSON.stringify(newHistory));
-
-    // Calculate streak
     let s = 0;
     const d = new Date();
     while (true) {
-      const key = d.toISOString().split("T")[0];
-      const dayPrayers = newHistory[key];
+      const key = getDateKey(d);
+      const dayPrayers = history[key];
       if (dayPrayers && PRAYERS.every((p) => dayPrayers[p.name])) {
         s++;
         d.setDate(d.getDate() - 1);
@@ -110,20 +104,25 @@ const Index = () => {
       }
     }
     setStreak(s);
-  }, [completed]);
+  }, [history, todayKey]);
+
+  // Persist history
+  useEffect(() => {
+    localStorage.setItem("namaz-history", JSON.stringify(history));
+    // Also persist today for backward compat
+    localStorage.setItem("namaz-today", JSON.stringify({ date: todayKey, prayers: history[todayKey] || {} }));
+  }, [history, todayKey]);
 
   const togglePrayer = (name: string) => {
     const wasCompleted = completed[name];
-    const newCompleted = { ...completed, [name]: !wasCompleted };
-    setCompleted(newCompleted);
+    const newDayPrayers = { ...completed, [name]: !wasCompleted };
+    const newHistory = { ...history, [selectedDate]: newDayPrayers };
+    setHistory(newHistory);
 
     if (!wasCompleted) {
-      const newCount = PRAYERS.filter((p) => newCompleted[p.name]).length;
+      const newCount = PRAYERS.filter((p) => newDayPrayers[p.name]).length;
       if (newCount === 5) {
-        setCelebration({
-          message: "Alhamdulillah! You completed all 5 prayers today 🤲✨",
-          isFullDay: true,
-        });
+        setCelebration({ message: "Alhamdulillah! You completed all 5 prayers today 🤲✨", isFullDay: true });
       } else {
         const msgFn = CELEBRATION_MESSAGES[Math.floor(Math.random() * CELEBRATION_MESSAGES.length)];
         setCelebration({ message: msgFn(name), isFullDay: false });
@@ -133,13 +132,21 @@ const Index = () => {
 
   const hideCelebration = useCallback(() => setCelebration(null), []);
 
-  const hijri = getHijriDate();
-  const today = new Date().toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
+  // Date navigation
+  const goDate = (dir: number) => {
+    const d = new Date(selectedDate + "T12:00:00");
+    d.setDate(d.getDate() + dir);
+    if (d <= new Date()) {
+      setSelectedDate(getDateKey(d));
+    }
+  };
+
+  const selectedDateObj = new Date(selectedDate + "T12:00:00");
+  const displayDate = selectedDateObj.toLocaleDateString("en-US", {
+    weekday: "long", year: "numeric", month: "long", day: "numeric",
   });
+
+  const hijri = getHijriDate();
 
   return (
     <div className="relative min-h-screen pb-20">
@@ -155,17 +162,60 @@ const Index = () => {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
+          className="text-center mb-6"
         >
           <h1 className="text-3xl sm:text-4xl font-bold text-gradient-islamic mb-2">
             ☪ Namaz Tracker
           </h1>
-          <p className="text-muted-foreground">{today}</p>
-          {hijri && <p className="text-sm text-islamic-gold font-medium mt-1">{hijri}</p>}
+          {isToday && hijri && <p className="text-sm text-islamic-gold font-medium">{hijri}</p>}
         </motion.div>
 
-        {/* Hijabi Reminder */}
-        <HijabiReminder nextPrayer={nextPrayer} missedPrayers={missedPrayers} />
+        {/* Date Navigator */}
+        <div className="flex items-center justify-center gap-3 mb-6">
+          <button
+            onClick={() => goDate(-1)}
+            className="p-2 rounded-xl glass-card hover:scale-105 transition-transform active:scale-95"
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <button
+            onClick={() => setSelectedDate(todayKey)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+              isToday ? "bg-primary text-primary-foreground shadow-md" : "glass-card"
+            }`}
+          >
+            <Calendar size={14} />
+            <span className="max-w-[200px] truncate">{isToday ? "Today" : displayDate}</span>
+          </button>
+          <button
+            onClick={() => goDate(1)}
+            disabled={isToday}
+            className="p-2 rounded-xl glass-card hover:scale-105 transition-transform disabled:opacity-30 active:scale-95"
+          >
+            <ChevronRight size={18} />
+          </button>
+        </div>
+
+        {/* Qaza indicator for past dates */}
+        {!isToday && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center mb-4"
+          >
+            <span className="inline-block bg-accent/20 text-accent-foreground text-xs font-medium px-3 py-1.5 rounded-full">
+              📅 Editing {displayDate} — Mark Qaza prayers
+            </span>
+          </motion.div>
+        )}
+
+        {/* Date label when not today */}
+        {!isToday && (
+          <p className="text-center text-muted-foreground text-sm mb-4">{displayDate}</p>
+        )}
+
+        {/* Hijabi Reminder (only today) */}
+        {isToday && <HijabiReminder nextPrayer={nextPrayer} missedPrayers={missedPrayers} />}
 
         {/* Progress ring */}
         <motion.div
@@ -198,7 +248,7 @@ const Index = () => {
               </motion.span>
             </div>
           </div>
-          {streak > 0 && (
+          {streak > 0 && isToday && (
             <div className="glass-card rounded-2xl px-5 py-3 flex items-center gap-2 animate-glow-pulse">
               <Flame className="text-islamic-gold" size={22} />
               <div>
@@ -220,7 +270,7 @@ const Index = () => {
               onToggle={() => togglePrayer(prayer.name)}
               index={i}
               color={prayer.color}
-              isNext={prayer.name === nextPrayer}
+              isNext={isToday && prayer.name === nextPrayer}
             />
           ))}
         </div>
