@@ -7,8 +7,10 @@ import Index from "./pages/Index";
 import DuaPage from "./pages/DuaPage";
 import DailyDuas from "./pages/DailyDuas";
 import AdditionalDuas from "./pages/AdditionalDuas";
+import TasbeehPage from "./pages/TasbeehPage";
 import QuranPage from "./pages/QuranPage";
 import QuranReader from "./pages/QuranReader";
+import CycleTracker from "./pages/CycleTracker";
 import NotFound from "./pages/NotFound";
 import Navbar from "./components/Navbar";
 
@@ -28,8 +30,10 @@ const App = () => (
               <Route path="/dua" element={<DuaPage />} />
               <Route path="/dua/daily" element={<DailyDuas />} />
               <Route path="/dua/additional" element={<AdditionalDuas />} />
+              <Route path="/dua/tasbeeh" element={<TasbeehPage />} />
               <Route path="/quran" element={<QuranPage />} />
               <Route path="/quran/:juzNumber" element={<QuranReader />} />
+              <Route path="/cycle" element={<CycleTracker />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
