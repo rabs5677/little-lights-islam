@@ -20,6 +20,14 @@ const categories = [
     gradient: "from-[hsl(270,50%,65%)] to-[hsl(340,60%,75%)]",
     emoji: "✨",
   },
+  {
+    title: "Tasbeeh Counter",
+    description: "Count your dhikr with a beautiful counter. Set targets and track your recitation.",
+    icon: Sparkles,
+    path: "/dua/tasbeeh",
+    gradient: "from-[hsl(200,80%,55%)] to-[hsl(170,55%,42%)]",
+    emoji: "📿",
+  },
 ];
 
 const DuaPage = () => {
@@ -38,7 +46,7 @@ const DuaPage = () => {
           <p className="text-muted-foreground">Beautiful supplications for every moment</p>
         </motion.div>
 
-        <div className="grid sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-3xl mx-auto">
           {categories.map((cat, i) => (
             <Link key={cat.path} to={cat.path}>
               <motion.div
