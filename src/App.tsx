@@ -27,13 +27,20 @@ const App = () => (
           <main className="pt-16">
             <Routes>
               <Route path="/" element={<Index />} />
+
               <Route path="/dua" element={<DuaPage />} />
               <Route path="/dua/daily" element={<DailyDuas />} />
               <Route path="/dua/additional" element={<AdditionalDuas />} />
               <Route path="/dua/tasbeeh" element={<TasbeehPage />} />
+
+              <Route path="/tasbeeh" element={<TasbeehPage />} />
+
               <Route path="/quran" element={<QuranPage />} />
               <Route path="/quran/:juzNumber" element={<QuranReader />} />
+
               <Route path="/cycle" element={<CycleTracker />} />
+              <Route path="/care" element={<CycleTracker />} />
+
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
