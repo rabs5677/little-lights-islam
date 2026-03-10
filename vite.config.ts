@@ -18,7 +18,6 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "apple-touch-icon.png"],
       manifest: {
         name: "JannahPath",
         short_name: "JannahPath",
