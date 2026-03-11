@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Flame, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import { Flame, ChevronLeft, ChevronRight, Calendar, MapPin, Clock } from "lucide-react";
 import PrayerCard from "@/components/PrayerCard";
 import PrayerProgress from "@/components/PrayerProgress";
 import ProgressSoFar from "@/components/ProgressSoFar";
@@ -8,13 +8,14 @@ import FloatingDecorations from "@/components/FloatingDecorations";
 import CelebrationBanner from "@/components/CelebrationBanner";
 import HijabiReminder from "@/components/HijabiReminder";
 import { isDateInCycle } from "@/pages/CycleTracker";
+import { usePrayerTimes } from "@/hooks/usePrayerTimes";
 
 const PRAYERS = [
-  { name: "Fajr", time: "5:15 AM", color: "#5bb5a2" },
-  { name: "Dhuhr", time: "12:30 PM", color: "#b39ddb" },
-  { name: "Asr", time: "3:45 PM", color: "#81d4fa" },
-  { name: "Maghrib", time: "6:20 PM", color: "#f48fb1" },
-  { name: "Isha", time: "8:00 PM", color: "#ffd54f" },
+  { name: "Fajr", color: "#5bb5a2" },
+  { name: "Dhuhr", color: "#b39ddb" },
+  { name: "Asr", color: "#81d4fa" },
+  { name: "Maghrib", color: "#f48fb1" },
+  { name: "Isha", color: "#ffd54f" },
 ];
 
 const CELEBRATION_MESSAGES = [
@@ -36,28 +37,20 @@ const getHijriDate = () => {
   }
 };
 
-const parseTime = (t: string) => {
-  const [time, period] = t.split(" ");
-  let [h, m] = time.split(":").map(Number);
-  if (period === "PM" && h !== 12) h += 12;
-  if (period === "AM" && h === 12) h = 0;
-  return h * 60 + m;
-};
-
-const getCurrentPrayerIndex = () => {
-  const now = new Date();
-  const nowMin = now.getHours() * 60 + now.getMinutes();
-  for (let i = PRAYERS.length - 1; i >= 0; i--) {
-    if (nowMin >= parseTime(PRAYERS[i].time)) return i;
-  }
-  return 0;
-};
-
 const Index = () => {
   const todayKey = getTodayKey();
   const [selectedDate, setSelectedDate] = useState<string>(todayKey);
   const isToday = selectedDate === todayKey;
   const todayInCycle = isDateInCycle(todayKey);
+  const { times, city, nextPrayerCountdown, nextPrayerName: apiNextPrayer } = usePrayerTimes();
+
+  const prayerTimes = useMemo(() => {
+    if (!times) return PRAYERS.map((p) => ({ ...p, time: "" }));
+    return PRAYERS.map((p) => ({
+      ...p,
+      time: times[p.name as keyof typeof times] || "",
+    }));
+  }, [times]);
 
   const [history, setHistory] = useState<Record<string, Record<string, boolean>>>(() => {
     const saved = localStorage.getItem("namaz-history");
@@ -69,31 +62,30 @@ const Index = () => {
   const [celebration, setCelebration] = useState<{ message: string; isFullDay: boolean } | null>(null);
 
   const completedCount = PRAYERS.filter((p) => completed[p.name]).length;
-  const currentIdx = getCurrentPrayerIndex();
 
+  // Next prayer based on API times
   const nextPrayer = useMemo(() => {
     if (!isToday || todayInCycle) return null;
-    if (!completed[PRAYERS[currentIdx].name]) return PRAYERS[currentIdx].name;
-    const future = PRAYERS.slice(currentIdx + 1).find((p) => !completed[p.name]);
-    return future?.name ?? null;
-  }, [isToday, completed, currentIdx, todayInCycle]);
+    return apiNextPrayer && !completed[apiNextPrayer] ? apiNextPrayer : null;
+  }, [isToday, completed, todayInCycle, apiNextPrayer]);
 
   const missedPrayers = useMemo(() => {
-    if (!isToday || todayInCycle) return [];
-    return PRAYERS.slice(0, currentIdx).filter((p) => !completed[p.name]).map((p) => p.name);
-  }, [isToday, completed, currentIdx, todayInCycle]);
+    if (!isToday || todayInCycle || !times) return [];
+    const now = new Date();
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    return PRAYERS.filter((p) => {
+      const [h, m] = (times[p.name as keyof typeof times] || "0:0").split(":").map(Number);
+      return (h * 60 + m) < nowMin && !completed[p.name];
+    }).map((p) => p.name);
+  }, [isToday, completed, todayInCycle, times]);
 
-  // Streak calculation with cycle pause support
+  // Streak
   useEffect(() => {
     let s = 0;
     const d = new Date();
     while (true) {
       const key = getDateKey(d);
-      if (isDateInCycle(key)) {
-        // Cycle day — skip, don't break streak
-        d.setDate(d.getDate() - 1);
-        continue;
-      }
+      if (isDateInCycle(key)) { d.setDate(d.getDate() - 1); continue; }
       const dayPrayers = history[key];
       if (dayPrayers && PRAYERS.every((p) => dayPrayers[p.name])) {
         s++;
@@ -114,8 +106,7 @@ const Index = () => {
   const togglePrayer = (name: string) => {
     const wasCompleted = completed[name];
     const newDayPrayers = { ...completed, [name]: !wasCompleted };
-    const newHistory = { ...history, [selectedDate]: newDayPrayers };
-    setHistory(newHistory);
+    setHistory({ ...history, [selectedDate]: newDayPrayers });
 
     if (!wasCompleted) {
       const newCount = PRAYERS.filter((p) => newDayPrayers[p.name]).length;
@@ -136,9 +127,7 @@ const Index = () => {
     if (d <= new Date()) setSelectedDate(getDateKey(d));
   };
 
-  const handleDateClick = (dateKey: string) => {
-    setSelectedDate(dateKey);
-  };
+  const handleDateClick = (dateKey: string) => setSelectedDate(dateKey);
 
   const selectedDateObj = new Date(selectedDate + "T12:00:00");
   const displayDate = selectedDateObj.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
@@ -150,10 +139,27 @@ const Index = () => {
       <FloatingDecorations />
       <CelebrationBanner message={celebration?.message ?? ""} visible={!!celebration} onHide={hideCelebration} isFullDay={celebration?.isFullDay} />
       <div className="container mx-auto px-4 py-6 relative z-10">
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-6">
-          <h1 className="text-3xl sm:text-4xl font-bold text-gradient-islamic mb-2">☪ Namaz Tracker</h1>
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-4">
+          <h1 className="text-3xl sm:text-4xl font-bold text-gradient-islamic mb-1">☪ Namaz Tracker</h1>
           {isToday && hijri && <p className="text-sm text-islamic-gold font-medium">{hijri}</p>}
         </motion.div>
+
+        {/* Location & Next Prayer Banner */}
+        {isToday && times && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center justify-center gap-4 flex-wrap mb-4">
+            {city && (
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <MapPin size={12} /> {city}
+              </span>
+            )}
+            {apiNextPrayer && (
+              <span className="flex items-center gap-1.5 text-xs font-medium bg-islamic-gold/15 text-foreground px-3 py-1.5 rounded-full">
+                <Clock size={12} className="text-islamic-gold" />
+                {apiNextPrayer} in {nextPrayerCountdown}
+              </span>
+            )}
+          </motion.div>
+        )}
 
         {/* Date Navigator */}
         <div className="flex items-center justify-center gap-3 mb-6">
@@ -180,7 +186,6 @@ const Index = () => {
           </motion.div>
         )}
 
-        {/* Cycle indicator */}
         {selectedInCycle && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center mb-4">
             <span className="inline-block bg-islamic-pink/20 text-foreground text-xs font-medium px-3 py-1.5 rounded-full">
@@ -215,7 +220,7 @@ const Index = () => {
 
         {/* Prayer Cards */}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 max-w-3xl mx-auto mb-8">
-          {PRAYERS.map((prayer, i) => (
+          {prayerTimes.map((prayer, i) => (
             <PrayerCard
               key={prayer.name}
               name={prayer.name}

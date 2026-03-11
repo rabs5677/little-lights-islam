@@ -11,6 +11,7 @@ import TasbeehPage from "./pages/TasbeehPage";
 import QuranPage from "./pages/QuranPage";
 import QuranReader from "./pages/QuranReader";
 import CycleTracker from "./pages/CycleTracker";
+import QiblaPage from "./pages/QiblaPage";
 import NotFound from "./pages/NotFound";
 import Navbar from "./components/Navbar";
 
@@ -37,6 +38,8 @@ const App = () => (
 
               <Route path="/quran" element={<QuranPage />} />
               <Route path="/quran/:juzNumber" element={<QuranReader />} />
+
+              <Route path="/qibla" element={<QiblaPage />} />
 
               <Route path="/cycle" element={<CycleTracker />} />
               <Route path="/care" element={<CycleTracker />} />
