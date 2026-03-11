@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import FloatingDecorations from "@/components/FloatingDecorations";
+import CycleGuidance from "@/components/CycleGuidance";
 
 export interface CycleEntry {
   startDate: string;
@@ -23,10 +24,16 @@ export const isDateInCycle = (dateKey: string): boolean => {
   return entries.some((e) => dateKey >= e.startDate && dateKey <= e.endDate);
 };
 
+const isTodayInCycle = (): boolean => {
+  const today = new Date().toISOString().split("T")[0];
+  return isDateInCycle(today);
+};
+
 const CycleTracker = () => {
   const [entries, setEntries] = useState<CycleEntry[]>(getCycleEntries);
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
+  const todayActive = isTodayInCycle();
 
   useEffect(() => {
     localStorage.setItem("cycle-entries", JSON.stringify(entries));
@@ -42,9 +49,7 @@ const CycleTracker = () => {
     setEndDate(undefined);
   };
 
-  const removeEntry = (i: number) => {
-    setEntries(entries.filter((_, idx) => idx !== i));
-  };
+  const removeEntry = (i: number) => setEntries(entries.filter((_, idx) => idx !== i));
 
   return (
     <div className="relative min-h-screen pb-20">
@@ -61,12 +66,7 @@ const CycleTracker = () => {
         </motion.div>
 
         {/* Info card */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass-card rounded-2xl p-5 mb-6 border-l-4"
-          style={{ borderLeftColor: "hsl(var(--islamic-pink))" }}
-        >
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-2xl p-5 mb-6 border-l-4" style={{ borderLeftColor: "hsl(var(--islamic-pink))" }}>
           <div className="flex items-start gap-3">
             <Heart className="text-islamic-pink flex-shrink-0 mt-0.5" size={18} />
             <div className="text-sm text-muted-foreground leading-relaxed">
@@ -108,22 +108,15 @@ const CycleTracker = () => {
               </PopoverContent>
             </Popover>
           </div>
-          <Button onClick={addEntry} disabled={!startDate || !endDate} className="w-full">
-            Add Cycle Period
-          </Button>
+          <Button onClick={addEntry} disabled={!startDate || !endDate} className="w-full">Add Cycle Period</Button>
         </div>
 
         {/* Entries */}
         {entries.length > 0 && (
-          <div className="space-y-3">
+          <div className="space-y-3 mb-8">
             <h3 className="font-bold">Saved Periods</h3>
             {entries.map((entry, i) => (
-              <motion.div
-                key={`${entry.startDate}-${entry.endDate}`}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="glass-card rounded-xl p-4 flex items-center justify-between"
-              >
+              <motion.div key={`${entry.startDate}-${entry.endDate}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Droplets size={16} className="text-islamic-pink" />
                   <span className="text-sm font-medium">
@@ -132,15 +125,24 @@ const CycleTracker = () => {
                     {new Date(entry.endDate + "T12:00:00").toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" })}
                   </span>
                 </div>
-                <button
-                  onClick={() => removeEntry(i)}
-                  className="text-xs text-destructive hover:underline"
-                >
-                  Remove
-                </button>
+                <button onClick={() => removeEntry(i)} className="text-xs text-destructive hover:underline">Remove</button>
               </motion.div>
             ))}
           </div>
+        )}
+
+        {/* Guidance section - shown when today is in cycle */}
+        {todayActive && <CycleGuidance />}
+
+        {/* Always show guidance preview */}
+        {!todayActive && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-6">
+            <div className="glass-card rounded-2xl p-5 text-center bg-islamic-pink/5">
+              <p className="text-sm text-muted-foreground">
+                🌸 During your cycle days, special guidance with dhikr suggestions will appear here automatically.
+              </p>
+            </div>
+          </motion.div>
         )}
       </div>
     </div>

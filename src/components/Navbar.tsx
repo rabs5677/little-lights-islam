@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Moon, BookOpen, HandHeart, Droplets } from "lucide-react";
+import { Moon, BookOpen, HandHeart, Droplets, Compass } from "lucide-react";
 import { motion } from "framer-motion";
 import logo from "@/assets/jannahpath-logo.png";
 
@@ -7,6 +7,7 @@ const navItems = [
   { path: "/", label: "Home", icon: Moon },
   { path: "/dua", label: "Dua", icon: HandHeart },
   { path: "/quran", label: "Quran", icon: BookOpen },
+  { path: "/qibla", label: "Qibla", icon: Compass },
   { path: "/cycle", label: "Care", icon: Droplets },
 ];
 
@@ -36,7 +37,7 @@ const Navbar = () => {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-300 ${
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-300 ${
                   isActive
                     ? "bg-primary text-primary-foreground shadow-md"
                     : "text-muted-foreground hover:bg-islamic-mint hover:text-foreground"
