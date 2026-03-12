@@ -59,6 +59,23 @@ const QuranReader = () => {
 
   const isBookmarkedJuz = bookmark?.juz === juz;
 
+  // Save last reading position
+  useEffect(() => {
+    if (ayahs.length > 0 && !loading) {
+      const pageAyahs = ayahs.slice(currentPage * AYAHS_PER_PAGE, (currentPage + 1) * AYAHS_PER_PAGE);
+      if (pageAyahs.length > 0) {
+        const last = pageAyahs[pageAyahs.length - 1];
+        localStorage.setItem("quran-last-read", JSON.stringify({
+          juz,
+          ayahNumber: last.number,
+          surahName: last.surah.englishName,
+          numberInSurah: last.numberInSurah,
+        }));
+        recordReadingDay();
+      }
+    }
+  }, [currentPage, ayahs, loading, juz]);
+
   useEffect(() => {
     const fetchQuran = async () => {
       setLoading(true);
@@ -147,7 +164,6 @@ const QuranReader = () => {
     }
   }, [currentPage, totalPages, goToPage]);
 
-  // Group page ayahs by surah
   const surahGroups: { surah: Ayah["surah"]; ayahs: Ayah[] }[] = [];
   pageAyahs.forEach((ayah) => {
     const last = surahGroups[surahGroups.length - 1];
@@ -167,8 +183,19 @@ const QuranReader = () => {
   }, [playingAyah]);
 
   return (
-    <div className="relative min-h-screen pb-28">
+    <div className="relative min-h-screen pb-20">
       <FloatingDecorations />
+
+      {/* Sticky Audio Player */}
+      {!loading && ayahs.length > 0 && (
+        <QuranAudioPlayer
+          ayahs={ayahs}
+          currentPage={currentPage}
+          ayahsPerPage={AYAHS_PER_PAGE}
+          onAyahPlaying={setPlayingAyah}
+        />
+      )}
+
       <div className="container mx-auto px-4 py-6 relative z-10 max-w-3xl">
         {/* Top bar */}
         <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
@@ -243,8 +270,8 @@ const QuranReader = () => {
                                   id={`ayah-${ayah.number}`}
                                   ref={isBookmarked ? bookmarkRef : undefined}
                                   className={`pb-3 border-b border-border/50 last:border-0 relative group rounded-xl transition-all duration-300 ${
-                                    isAudioPlaying ? "bg-islamic-sky/30 px-3 py-2 ring-1 ring-primary/20" :
-                                    isBookmarked ? "bg-islamic-gold/10 px-3 py-2 ring-1 ring-islamic-gold/30" : ""
+                                    isAudioPlaying ? "bg-primary/10 px-3 py-2 ring-1 ring-primary/20" :
+                                    isBookmarked ? "bg-accent/10 px-3 py-2 ring-1 ring-accent/30" : ""
                                   }`}
                                 >
                                   {isBookmarked && (
@@ -255,7 +282,7 @@ const QuranReader = () => {
                                   )}
                                   <div className="flex items-start gap-3">
                                     <div className="flex flex-col items-center gap-1">
-                                      <span className="flex-shrink-0 w-8 h-8 rounded-full bg-islamic-cream flex items-center justify-center text-xs font-bold text-foreground/70">
+                                      <span className="flex-shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground">
                                         {ayah.numberInSurah}
                                       </span>
                                       <button onClick={(e) => { e.stopPropagation(); bookmarkAyah(ayah); }} className="opacity-0 group-hover:opacity-100 transition-opacity p-1" title="Bookmark">
@@ -277,14 +304,14 @@ const QuranReader = () => {
                       ))}
                     </div>
                   ) : (
-                    <div className="rounded-2xl p-5 sm:p-8 md:p-10 shadow-xl border border-islamic-gold/20 relative overflow-hidden bg-islamic-sky/30">
-                      <div className="absolute inset-2 sm:inset-4 border border-islamic-gold/15 rounded-xl pointer-events-none" />
-                      <div className="absolute inset-3 sm:inset-6 border border-islamic-gold/10 rounded-lg pointer-events-none" />
+                    <div className="rounded-2xl p-5 sm:p-8 md:p-10 shadow-xl border border-accent/20 relative overflow-hidden bg-muted/30">
+                      <div className="absolute inset-2 sm:inset-4 border border-accent/15 rounded-xl pointer-events-none" />
+                      <div className="absolute inset-3 sm:inset-6 border border-accent/10 rounded-lg pointer-events-none" />
                       {surahGroups.map((group, gi) => (
                         <div key={`${group.surah.number}-${group.ayahs[0].numberInSurah}`}>
                           {(gi > 0 || group.ayahs[0].numberInSurah === 1) && (
                             <div className="my-6 text-center">
-                              <div className="inline-block bg-islamic-gold/10 border border-islamic-gold/25 rounded-xl px-6 py-3">
+                              <div className="inline-block bg-accent/10 border border-accent/25 rounded-xl px-6 py-3">
                                 <p className="arabic-font text-xl sm:text-2xl text-islamic-gold">{group.surah.name}</p>
                                 <p className="text-xs text-muted-foreground mt-1">{group.surah.englishName}</p>
                               </div>
@@ -303,7 +330,7 @@ const QuranReader = () => {
                               ref={isBookmarked ? bookmarkRef : undefined}
                               className={`relative group/ayah cursor-pointer transition-colors duration-300 ${
                                 isAudioPlaying ? "bg-primary/15 rounded px-1" :
-                                isBookmarked ? "bg-islamic-gold/20 rounded px-1" : "hover:bg-islamic-gold/5 rounded"
+                                isBookmarked ? "bg-accent/20 rounded px-1" : "hover:bg-accent/5 rounded"
                               }`}
                               onClick={() => bookmarkAyah(ayah)}
                             >
@@ -313,7 +340,7 @@ const QuranReader = () => {
                                 </span>
                               )}
                               {ayah.text}{" "}
-                              <span className="inline-flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-islamic-gold/40 text-islamic-gold text-sm sm:text-base mx-0.5 align-middle font-normal">
+                              <span className="inline-flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-accent/40 text-islamic-gold text-sm sm:text-base mx-0.5 align-middle font-normal">
                                 {toArabicNum(ayah.numberInSurah)}
                               </span>{" "}
                             </span>
@@ -355,16 +382,6 @@ const QuranReader = () => {
           </>
         )}
       </div>
-
-      {/* Audio Player */}
-      {!loading && ayahs.length > 0 && (
-        <QuranAudioPlayer
-          ayahs={ayahs}
-          currentPage={currentPage}
-          ayahsPerPage={AYAHS_PER_PAGE}
-          onAyahPlaying={setPlayingAyah}
-        />
-      )}
     </div>
   );
 };
