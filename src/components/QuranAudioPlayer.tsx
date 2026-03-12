@@ -44,7 +44,6 @@ const QuranAudioPlayer = ({ ayahs, currentPage, ayahsPerPage, onAyahPlaying }: Q
     onAyahPlaying?.(ayah.number);
   }, [pageAyahs, onAyahPlaying]);
 
-  // Reset when page changes
   useEffect(() => {
     setCurrentAyahIdx(0);
     setIsPlaying(false);
@@ -122,9 +121,9 @@ const QuranAudioPlayer = ({ ayahs, currentPage, ayahsPerPage, onAyahPlaying }: Q
     <>
       <audio ref={audioRef} preload="auto" />
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="fixed bottom-0 left-0 right-0 z-40 glass-card border-t border-primary/20 shadow-xl px-4 py-3 safe-bottom"
+        className="sticky top-16 z-40 glass-card border-b border-border shadow-md px-4 py-3"
       >
         <div className="max-w-3xl mx-auto">
           {/* Progress bar */}
