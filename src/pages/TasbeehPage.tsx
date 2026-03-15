@@ -1,17 +1,20 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, RotateCcw, Target, Play, Trash2 } from "lucide-react";
+import { ArrowLeft, RotateCcw, Target, Play, Trophy, Star } from "lucide-react";
 import FloatingDecorations from "@/components/FloatingDecorations";
 
 const SUGGESTIONS = [
-  { text: "أَسْتَغْفِرُ اللَّهَ", transliteration: "Astaghfirullah", benefit: "Helps in seeking forgiveness and purification of sins.", target: 100 },
-  { text: "سُبْحَانَ اللَّهِ", transliteration: "SubhanAllah", benefit: "Increases remembrance of Allah and brings peace to the heart.", target: 100 },
-  { text: "الْحَمْدُ لِلَّهِ", transliteration: "Alhamdulillah", benefit: "Builds gratitude and brings barakah.", target: 100 },
-  { text: "اللَّهُ أَكْبَرُ", transliteration: "Allahu Akbar", benefit: "Strengthens faith and humility.", target: 100 },
-  { text: "لَا إِلَهَ إِلَّا أَنْتَ سُبْحَانَكَ إِنِّي كُنْتُ مِنَ الظَّالِمِينَ", transliteration: "La ilaha illa anta subhanaka inni kuntu minaz-zalimin", benefit: "Helpful in distress and difficult situations.", target: 33 },
-  { text: "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ", transliteration: "SubhanAllahi wa bihamdihi", benefit: "A beloved dhikr with great rewards.", target: 100 },
-  { text: "حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ", transliteration: "Hasbunallahu wa ni'mal wakeel", benefit: "Gives comfort and trust in Allah in hardship.", target: 33 },
+  { text: "أَسْتَغْفِرُ اللَّهَ", transliteration: "Astaghfirullah", meaning: "I seek forgiveness from Allah", benefit: "Purifies the heart and erases sins. The Prophet ﷺ used to seek forgiveness 100 times a day.", target: 100 },
+  { text: "سُبْحَانَ اللَّهِ", transliteration: "SubhanAllah", meaning: "Glory be to Allah", benefit: "A plant in Jannah is planted for you with every recitation.", target: 100 },
+  { text: "الْحَمْدُ لِلَّهِ", transliteration: "Alhamdulillah", meaning: "All praise is for Allah", benefit: "Fills the scales of good deeds on the Day of Judgment.", target: 100 },
+  { text: "اللَّهُ أَكْبَرُ", transliteration: "Allahu Akbar", meaning: "Allah is the Greatest", benefit: "Beloved to Allah and a means of elevation in ranks.", target: 100 },
+  { text: "لَا إِلَهَ إِلَّا اللَّهُ", transliteration: "La ilaha illa Allah", meaning: "There is no god but Allah", benefit: "The best dhikr and the key to Paradise.", target: 100 },
+  { text: "لَا إِلَهَ إِلَّا أَنْتَ سُبْحَانَكَ إِنِّي كُنْتُ مِنَ الظَّالِمِينَ", transliteration: "La ilaha illa anta subhanaka inni kuntu minaz-zalimin", meaning: "None has the right to be worshipped but You, Glorified are You. Indeed, I have been of the wrongdoers.", benefit: "Dua of Prophet Yunus (AS) – relieves distress and hardship.", target: 33 },
+  { text: "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ", transliteration: "SubhanAllahi wa bihamdihi", meaning: "Glory and praise be to Allah", benefit: "Sins fall away like leaves, even if as many as the foam of the sea.", target: 100 },
+  { text: "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ سُبْحَانَ اللَّهِ الْعَظِيمِ", transliteration: "SubhanAllahi wa bihamdihi, SubhanAllahil Azeem", meaning: "Glory and praise be to Allah, Glory be to Allah the Almighty", benefit: "Two phrases light on the tongue, heavy on the scales, beloved to Ar-Rahman.", target: 100 },
+  { text: "حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ", transliteration: "Hasbunallahu wa ni'mal wakeel", meaning: "Allah is sufficient for us and the best disposer of affairs", benefit: "Said by Ibrahim (AS) when thrown in fire. Brings trust and comfort.", target: 33 },
+  { text: "لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ", transliteration: "La hawla wa la quwwata illa billah", meaning: "There is no power or strength except with Allah", benefit: "A treasure from the treasures of Paradise.", target: 100 },
 ];
 
 const ENCOURAGEMENT = [
@@ -27,6 +30,8 @@ const NEAR_END = [
   "MashaAllah, nearly done! ✨",
 ];
 
+const MILESTONES = [100, 200, 300, 500, 1000];
+
 interface TasbeehSession {
   dhikrName: string;
   target: number;
@@ -39,6 +44,12 @@ interface SavedSession {
   dhikrName: string;
   target: number;
   count: number;
+}
+
+interface Achievement {
+  dhikrName: string;
+  count: number;
+  date: string;
 }
 
 const getTodayKey = () => new Date().toISOString().split("T")[0];
@@ -69,27 +80,48 @@ const saveActiveSession = (s: SavedSession | null) => {
   else localStorage.removeItem("tasbeeh-active-session");
 };
 
+const loadAchievements = (): Achievement[] => {
+  const saved = localStorage.getItem("tasbeeh-achievements");
+  return saved ? JSON.parse(saved) : [];
+};
+
+const saveAchievement = (a: Achievement) => {
+  const all = loadAchievements();
+  all.push(a);
+  localStorage.setItem("tasbeeh-achievements", JSON.stringify(all));
+};
+
 const TasbeehPage = () => {
   const savedSession = loadSavedSession();
   const [target, setTarget] = useState<number>(savedSession?.target || 0);
   const [dhikrName, setDhikrName] = useState(savedSession?.dhikrName || "");
   const [customTarget, setCustomTarget] = useState("");
+  const [customDhikrName, setCustomDhikrName] = useState("");
   const [count, setCount] = useState(savedSession?.count || 0);
   const [completed, setCompleted] = useState(false);
   const [todayRecords, setTodayRecords] = useState<TasbeehSession[]>(loadTodayRecords);
   const [showContinueCard, setShowContinueCard] = useState(!!savedSession && savedSession.count > 0);
+  const [achievements] = useState<Achievement[]>(loadAchievements);
 
   const remaining = Math.max(0, target - count);
   const progress = target > 0 ? Math.min(100, (count / target) * 100) : 0;
-
   const totalToday = useMemo(() => todayRecords.reduce((sum, r) => sum + r.count, 0), [todayRecords]);
 
-  // Persist active session
   useEffect(() => {
     if (target > 0 && !completed) {
       saveActiveSession({ dhikrName, target, count });
     }
   }, [count, target, dhikrName, completed]);
+
+  const checkMilestones = useCallback((name: string, finalCount: number) => {
+    const todayKey = getTodayKey();
+    const existing = loadAchievements();
+    for (const m of MILESTONES) {
+      if (finalCount >= m && !existing.some((a) => a.dhikrName === name && a.count === m && a.date === todayKey)) {
+        saveAchievement({ dhikrName: name, count: m, date: todayKey });
+      }
+    }
+  }, []);
 
   const handleCount = useCallback(() => {
     if (completed) return;
@@ -97,19 +129,22 @@ const TasbeehPage = () => {
     setCount(next);
     if (next >= target) {
       setCompleted(true);
-      const session: TasbeehSession = { dhikrName: dhikrName || "Custom Dhikr", target, count: next, completed: true, timestamp: Date.now() };
+      const name = dhikrName || "Custom Dhikr";
+      const session: TasbeehSession = { dhikrName: name, target, count: next, completed: true, timestamp: Date.now() };
       saveTodayRecord(session);
       setTodayRecords(loadTodayRecords());
       saveActiveSession(null);
+      checkMilestones(name, next);
     }
-  }, [count, target, completed, dhikrName]);
+  }, [count, target, completed, dhikrName, checkMilestones]);
 
   const reset = () => {
-    // Save partial if count > 0
     if (count > 0 && !completed) {
-      const session: TasbeehSession = { dhikrName: dhikrName || "Custom Dhikr", target, count, completed: false, timestamp: Date.now() };
+      const name = dhikrName || "Custom Dhikr";
+      const session: TasbeehSession = { dhikrName: name, target, count, completed: false, timestamp: Date.now() };
       saveTodayRecord(session);
       setTodayRecords(loadTodayRecords());
+      checkMilestones(name, count);
     }
     setCount(0);
     setCompleted(false);
@@ -118,20 +153,19 @@ const TasbeehPage = () => {
 
   const startWithTarget = (t: number, name?: string) => {
     setTarget(t);
-    setDhikrName(name || "");
+    setDhikrName(name || customDhikrName || "");
     setCount(0);
     setCompleted(false);
     setShowContinueCard(false);
-    saveActiveSession({ dhikrName: name || "", target: t, count: 0 });
+    saveActiveSession({ dhikrName: name || customDhikrName || "", target: t, count: 0 });
   };
 
-  const continueSession = () => {
-    setShowContinueCard(false);
-  };
+  const continueSession = () => setShowContinueCard(false);
 
   const newSession = () => {
     if (count > 0 && !completed) {
-      const session: TasbeehSession = { dhikrName: dhikrName || "Custom Dhikr", target, count, completed: false, timestamp: Date.now() };
+      const name = dhikrName || "Custom Dhikr";
+      const session: TasbeehSession = { dhikrName: name, target, count, completed: false, timestamp: Date.now() };
       saveTodayRecord(session);
       setTodayRecords(loadTodayRecords());
     }
@@ -139,6 +173,7 @@ const TasbeehPage = () => {
     setCount(0);
     setCompleted(false);
     setDhikrName("");
+    setCustomDhikrName("");
     setShowContinueCard(false);
     saveActiveSession(null);
   };
@@ -148,6 +183,11 @@ const TasbeehPage = () => {
     if (progress > 80) return NEAR_END[count % NEAR_END.length];
     return ENCOURAGEMENT[count % ENCOURAGEMENT.length];
   };
+
+  const todayAchievements = useMemo(() => {
+    const todayKey = getTodayKey();
+    return achievements.filter((a) => a.date === todayKey);
+  }, [achievements]);
 
   return (
     <div className="relative min-h-screen pb-20">
@@ -183,6 +223,18 @@ const TasbeehPage = () => {
               <div className="glass-card rounded-2xl p-6 text-center">
                 <Target className="mx-auto mb-3 text-islamic-gold" size={32} />
                 <h2 className="font-bold text-lg mb-4">Set Your Target</h2>
+
+                {/* Dhikr name input */}
+                <div className="mb-4">
+                  <input
+                    type="text"
+                    value={customDhikrName}
+                    onChange={(e) => setCustomDhikrName(e.target.value)}
+                    placeholder="Enter dhikr name (e.g. Astaghfirullah)"
+                    className="w-full px-4 py-2.5 rounded-xl bg-background border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring text-center"
+                  />
+                </div>
+
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   {[33, 100, 500, 1000].map((t) => (
                     <button key={t} onClick={() => startWithTarget(t)} className="glass-card rounded-xl py-3 font-bold text-lg hover:scale-105 active:scale-95 transition-transform">
@@ -191,16 +243,16 @@ const TasbeehPage = () => {
                   ))}
                 </div>
                 <div className="flex gap-2">
-                  <input type="number" value={customTarget} onChange={(e) => setCustomTarget(e.target.value)} placeholder="Custom..." className="flex-1 px-4 py-2.5 rounded-xl bg-background border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                  <input type="number" value={customTarget} onChange={(e) => setCustomTarget(e.target.value)} placeholder="Custom count..." className="flex-1 px-4 py-2.5 rounded-xl bg-background border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                   <button onClick={() => { const n = parseInt(customTarget); if (n > 0) startWithTarget(n); }} className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 transition-colors">Start</button>
                 </div>
               </div>
 
-              {/* Quick start from suggestions */}
+              {/* Quick start */}
               <div className="space-y-2">
                 <p className="text-sm font-semibold text-center text-muted-foreground">Quick Start</p>
                 <div className="grid grid-cols-2 gap-2">
-                  {SUGGESTIONS.slice(0, 4).map((s) => (
+                  {SUGGESTIONS.slice(0, 6).map((s) => (
                     <button key={s.transliteration} onClick={() => startWithTarget(s.target, s.transliteration)} className="glass-card rounded-xl p-3 text-left hover:scale-[1.02] active:scale-[0.98] transition-transform">
                       <p className="text-xs font-medium">{s.transliteration}</p>
                       <p className="text-[10px] text-muted-foreground">{s.target}×</p>
@@ -268,6 +320,24 @@ const TasbeehPage = () => {
           </div>
         )}
 
+        {/* Achievements */}
+        {todayAchievements.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-8">
+            <h2 className="font-bold text-lg mb-3 text-center flex items-center justify-center gap-2">
+              <Trophy size={18} className="text-islamic-gold" /> Dhikr Milestones
+            </h2>
+            <div className="grid grid-cols-2 gap-2">
+              {todayAchievements.map((a, i) => (
+                <div key={i} className="glass-card rounded-xl p-3 text-center">
+                  <Star size={16} className="text-islamic-gold mx-auto mb-1" />
+                  <p className="text-xs font-bold">{a.count}×</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{a.dhikrName}</p>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
         {/* Today's Record */}
         {todayRecords.length > 0 && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8">
@@ -292,16 +362,17 @@ const TasbeehPage = () => {
           </motion.div>
         )}
 
-        {/* Suggestions */}
+        {/* Suggestions with full details */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="mt-10">
           <h2 className="font-bold text-lg mb-4 text-center">📿 Dhikr Suggestions & Benefits</h2>
           <div className="space-y-3">
             {SUGGESTIONS.map((s, i) => (
-              <motion.div key={s.transliteration} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 * i }} className="glass-card rounded-2xl p-4">
+              <motion.div key={s.transliteration} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 * i }} className="glass-card rounded-2xl p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1">
                     <p className="arabic-font text-right text-lg sm:text-xl mb-1">{s.text}</p>
                     <p className="text-sm font-medium text-primary">{s.transliteration} — {s.target}×</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 italic">{s.meaning}</p>
                     <p className="text-xs text-muted-foreground mt-1">{s.benefit}</p>
                   </div>
                   <button onClick={() => startWithTarget(s.target, s.transliteration)} className="flex-shrink-0 p-2 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 transition-colors" title="Start this dhikr">

@@ -1,14 +1,17 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Flame, ChevronLeft, ChevronRight, Calendar, MapPin, Clock } from "lucide-react";
+import { Flame, ChevronLeft, ChevronRight, Calendar, MapPin, Clock, Settings } from "lucide-react";
 import PrayerCard from "@/components/PrayerCard";
 import PrayerProgress from "@/components/PrayerProgress";
 import ProgressSoFar from "@/components/ProgressSoFar";
 import FloatingDecorations from "@/components/FloatingDecorations";
 import CelebrationBanner from "@/components/CelebrationBanner";
 import HijabiReminder from "@/components/HijabiReminder";
+import PrayerAlertBanner from "@/components/PrayerAlertBanner";
+import PrayerSettings from "@/components/PrayerSettings";
 import { isDateInCycle } from "@/pages/CycleTracker";
 import { usePrayerTimes } from "@/hooks/usePrayerTimes";
+import { usePrayerNotifications } from "@/hooks/usePrayerNotifications";
 
 const PRAYERS = [
   { name: "Fajr", color: "#5bb5a2" },
@@ -40,16 +43,15 @@ const getHijriDate = () => {
 const Index = () => {
   const todayKey = getTodayKey();
   const [selectedDate, setSelectedDate] = useState<string>(todayKey);
+  const [showSettings, setShowSettings] = useState(false);
   const isToday = selectedDate === todayKey;
   const todayInCycle = isDateInCycle(todayKey);
   const { times, city, nextPrayerCountdown, nextPrayerName: apiNextPrayer } = usePrayerTimes();
+  const { settings, updateSettings, alert, dismissAlert, notifPermission, requestPermission, testAzaan, testNotification } = usePrayerNotifications();
 
   const prayerTimes = useMemo(() => {
     if (!times) return PRAYERS.map((p) => ({ ...p, time: "" }));
-    return PRAYERS.map((p) => ({
-      ...p,
-      time: times[p.name as keyof typeof times] || "",
-    }));
+    return PRAYERS.map((p) => ({ ...p, time: times[p.name as keyof typeof times] || "" }));
   }, [times]);
 
   const [history, setHistory] = useState<Record<string, Record<string, boolean>>>(() => {
@@ -60,10 +62,8 @@ const Index = () => {
   const completed = history[selectedDate] || {};
   const [streak, setStreak] = useState(0);
   const [celebration, setCelebration] = useState<{ message: string; isFullDay: boolean } | null>(null);
-
   const completedCount = PRAYERS.filter((p) => completed[p.name]).length;
 
-  // Next prayer based on API times
   const nextPrayer = useMemo(() => {
     if (!isToday || todayInCycle) return null;
     return apiNextPrayer && !completed[apiNextPrayer] ? apiNextPrayer : null;
@@ -79,7 +79,6 @@ const Index = () => {
     }).map((p) => p.name);
   }, [isToday, completed, todayInCycle, times]);
 
-  // Streak
   useEffect(() => {
     let s = 0;
     const d = new Date();
@@ -107,7 +106,6 @@ const Index = () => {
     const wasCompleted = completed[name];
     const newDayPrayers = { ...completed, [name]: !wasCompleted };
     setHistory({ ...history, [selectedDate]: newDayPrayers });
-
     if (!wasCompleted) {
       const newCount = PRAYERS.filter((p) => newDayPrayers[p.name]).length;
       if (newCount === 5) {
@@ -137,6 +135,7 @@ const Index = () => {
   return (
     <div className="relative min-h-screen pb-20">
       <FloatingDecorations />
+      <PrayerAlertBanner prayerName={alert.prayerName} visible={alert.visible} onDismiss={dismissAlert} />
       <CelebrationBanner message={celebration?.message ?? ""} visible={!!celebration} onHide={hideCelebration} isFullDay={celebration?.isFullDay} />
       <div className="container mx-auto px-4 py-6 relative z-10">
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-4">
@@ -144,7 +143,6 @@ const Index = () => {
           {isToday && hijri && <p className="text-sm text-islamic-gold font-medium">{hijri}</p>}
         </motion.div>
 
-        {/* Location & Next Prayer Banner */}
         {isToday && times && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center justify-center gap-4 flex-wrap mb-4">
             {city && (
@@ -158,7 +156,23 @@ const Index = () => {
                 {apiNextPrayer} in {nextPrayerCountdown}
               </span>
             )}
+            <button onClick={() => setShowSettings(!showSettings)} className="p-1.5 rounded-full hover:bg-muted transition-colors" title="Prayer alert settings">
+              <Settings size={14} className="text-muted-foreground" />
+            </button>
           </motion.div>
+        )}
+
+        {showSettings && (
+          <div className="max-w-md mx-auto mb-6">
+            <PrayerSettings
+              settings={settings}
+              notifPermission={notifPermission}
+              onUpdate={updateSettings}
+              onRequestPermission={requestPermission}
+              onTestAzaan={testAzaan}
+              onTestNotification={testNotification}
+            />
+          </div>
         )}
 
         {/* Date Navigator */}
@@ -166,10 +180,7 @@ const Index = () => {
           <button onClick={() => goDate(-1)} className="p-2 rounded-xl glass-card hover:scale-105 transition-transform active:scale-95">
             <ChevronLeft size={18} />
           </button>
-          <button
-            onClick={() => setSelectedDate(todayKey)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${isToday ? "bg-primary text-primary-foreground shadow-md" : "glass-card"}`}
-          >
+          <button onClick={() => setSelectedDate(todayKey)} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${isToday ? "bg-primary text-primary-foreground shadow-md" : "glass-card"}`}>
             <Calendar size={14} />
             <span className="max-w-[200px] truncate">{isToday ? "Today" : displayDate}</span>
           </button>
@@ -196,7 +207,6 @@ const Index = () => {
 
         {isToday && <HijabiReminder nextPrayer={nextPrayer} missedPrayers={missedPrayers} />}
 
-        {/* Progress ring */}
         <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }} className="flex items-center justify-center gap-6 mb-8">
           <div className="relative w-24 h-24">
             <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
@@ -218,7 +228,6 @@ const Index = () => {
           )}
         </motion.div>
 
-        {/* Prayer Cards */}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 max-w-3xl mx-auto mb-8">
           {prayerTimes.map((prayer, i) => (
             <PrayerCard
@@ -234,7 +243,6 @@ const Index = () => {
           ))}
         </div>
 
-        {/* Progress */}
         <div className="max-w-3xl mx-auto space-y-6">
           <PrayerProgress history={history} />
           <ProgressSoFar history={history} onDateClick={handleDateClick} />
