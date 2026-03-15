@@ -14,15 +14,18 @@ interface QuranAudioPlayerProps {
   currentPage: number;
   ayahsPerPage: number;
   onAyahPlaying?: (ayahNumber: number | null) => void;
+  onRequestNextPage?: () => void;
 }
 
-const QuranAudioPlayer = ({ ayahs, currentPage, ayahsPerPage, onAyahPlaying }: QuranAudioPlayerProps) => {
+const QuranAudioPlayer = ({ ayahs, currentPage, ayahsPerPage, onAyahPlaying, onRequestNextPage }: QuranAudioPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentAyahIdx, setCurrentAyahIdx] = useState(0);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const autoAdvanceRef = useRef(false);
 
+  const totalPages = Math.ceil(ayahs.length / ayahsPerPage);
   const pageAyahs = ayahs.slice(currentPage * ayahsPerPage, (currentPage + 1) * ayahsPerPage);
   const currentAyah = pageAyahs[currentAyahIdx];
 
@@ -35,7 +38,6 @@ const QuranAudioPlayer = ({ ayahs, currentPage, ayahsPerPage, onAyahPlaying }: Q
     setProgress(0);
     const ayah = pageAyahs[idx];
     if (!ayah) return;
-
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.src = getAudioUrl(ayah.number);
@@ -44,19 +46,31 @@ const QuranAudioPlayer = ({ ayahs, currentPage, ayahsPerPage, onAyahPlaying }: Q
     onAyahPlaying?.(ayah.number);
   }, [pageAyahs, onAyahPlaying]);
 
+  // When page changes from auto-advance, start playing first ayah
   useEffect(() => {
     setCurrentAyahIdx(0);
-    setIsPlaying(false);
     setProgress(0);
-    onAyahPlaying?.(null);
-    if (audioRef.current) {
-      audioRef.current.pause();
+    if (autoAdvanceRef.current) {
+      // Auto-advanced: play first ayah of new page
+      autoAdvanceRef.current = false;
+      const firstAyah = ayahs.slice(currentPage * ayahsPerPage, (currentPage + 1) * ayahsPerPage)[0];
+      if (firstAyah && audioRef.current) {
+        audioRef.current.src = getAudioUrl(firstAyah.number);
+        audioRef.current.load();
+        audioRef.current.play().catch(() => {});
+        setIsPlaying(true);
+        onAyahPlaying?.(firstAyah.number);
+      }
+    } else {
+      // Manual page change
+      onAyahPlaying?.(null);
+      if (audioRef.current) audioRef.current.pause();
+      setIsPlaying(false);
     }
   }, [currentPage]);
 
   const togglePlay = useCallback(() => {
     if (!audioRef.current || !currentAyah) return;
-
     if (isPlaying) {
       audioRef.current.pause();
       setIsPlaying(false);
@@ -79,11 +93,15 @@ const QuranAudioPlayer = ({ ayahs, currentPage, ayahsPerPage, onAyahPlaying }: Q
         audioRef.current?.play().catch(() => {});
         setIsPlaying(true);
       }, 200);
+    } else if (currentPage < totalPages - 1 && onRequestNextPage) {
+      // Auto-continue to next page
+      autoAdvanceRef.current = true;
+      onRequestNextPage();
     } else {
       setIsPlaying(false);
       onAyahPlaying?.(null);
     }
-  }, [currentAyahIdx, pageAyahs.length, loadAyah, onAyahPlaying]);
+  }, [currentAyahIdx, pageAyahs.length, loadAyah, onAyahPlaying, currentPage, totalPages, onRequestNextPage]);
 
   const replay = useCallback(() => {
     if (audioRef.current) {
@@ -96,18 +114,12 @@ const QuranAudioPlayer = ({ ayahs, currentPage, ayahsPerPage, onAyahPlaying }: Q
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-
-    const onTimeUpdate = () => {
-      setProgress(audio.currentTime);
-      setDuration(audio.duration || 0);
-    };
+    const onTimeUpdate = () => { setProgress(audio.currentTime); setDuration(audio.duration || 0); };
     const onEnded = () => playNext();
-    const onError = () => { setIsPlaying(false); };
-
+    const onError = () => setIsPlaying(false);
     audio.addEventListener("timeupdate", onTimeUpdate);
     audio.addEventListener("ended", onEnded);
     audio.addEventListener("error", onError);
-
     return () => {
       audio.removeEventListener("timeupdate", onTimeUpdate);
       audio.removeEventListener("ended", onEnded);
@@ -126,7 +138,6 @@ const QuranAudioPlayer = ({ ayahs, currentPage, ayahsPerPage, onAyahPlaying }: Q
         className="sticky top-16 z-40 glass-card border-b border-border shadow-md px-4 py-3"
       >
         <div className="max-w-3xl mx-auto">
-          {/* Progress bar */}
           <div className="w-full h-1 rounded-full bg-muted mb-3 cursor-pointer"
             onClick={(e) => {
               if (!audioRef.current || !duration) return;
@@ -135,15 +146,9 @@ const QuranAudioPlayer = ({ ayahs, currentPage, ayahsPerPage, onAyahPlaying }: Q
               audioRef.current.currentTime = pct * duration;
             }}
           >
-            <motion.div
-              className="h-full rounded-full bg-islamic-gold"
-              style={{ width: `${progressPercent}%` }}
-              transition={{ duration: 0.1 }}
-            />
+            <motion.div className="h-full rounded-full bg-islamic-gold" style={{ width: `${progressPercent}%` }} transition={{ duration: 0.1 }} />
           </div>
-
           <div className="flex items-center justify-between gap-3">
-            {/* Info */}
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <Volume2 size={14} className="text-islamic-gold flex-shrink-0" />
               <div className="min-w-0">
@@ -153,24 +158,17 @@ const QuranAudioPlayer = ({ ayahs, currentPage, ayahsPerPage, onAyahPlaying }: Q
                 <p className="text-[10px] text-muted-foreground">Mishary Rashid Alafasy</p>
               </div>
             </div>
-
-            {/* Controls */}
             <div className="flex items-center gap-2">
               <button onClick={replay} className="p-2 rounded-full hover:bg-muted transition-colors" title="Replay">
                 <RotateCcw size={16} className="text-muted-foreground" />
               </button>
-              <button
-                onClick={togglePlay}
-                className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors shadow-md"
-              >
+              <button onClick={togglePlay} className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors shadow-md">
                 {isPlaying ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
               </button>
               <button onClick={playNext} className="p-2 rounded-full hover:bg-muted transition-colors" title="Next ayah">
                 <SkipForward size={16} className="text-muted-foreground" />
               </button>
             </div>
-
-            {/* Page progress */}
             <div className="text-[10px] text-muted-foreground text-right flex-shrink-0">
               {currentAyahIdx + 1}/{pageAyahs.length}
             </div>

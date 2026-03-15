@@ -59,17 +59,13 @@ const QuranReader = () => {
 
   const isBookmarkedJuz = bookmark?.juz === juz;
 
-  // Save last reading position
   useEffect(() => {
     if (ayahs.length > 0 && !loading) {
       const pageAyahs = ayahs.slice(currentPage * AYAHS_PER_PAGE, (currentPage + 1) * AYAHS_PER_PAGE);
       if (pageAyahs.length > 0) {
         const last = pageAyahs[pageAyahs.length - 1];
         localStorage.setItem("quran-last-read", JSON.stringify({
-          juz,
-          ayahNumber: last.number,
-          surahName: last.surah.englishName,
-          numberInSurah: last.numberInSurah,
+          juz, ayahNumber: last.number, surahName: last.surah.englishName, numberInSurah: last.numberInSurah,
         }));
         recordReadingDay();
       }
@@ -119,13 +115,9 @@ const QuranReader = () => {
 
   const bookmarkAyah = useCallback((ayah: Ayah) => {
     const bm: QuranBookmark = {
-      juz,
-      ayahNumber: ayah.number,
-      surahNumber: ayah.surah.number,
-      surahName: ayah.surah.englishName,
-      surahArabic: ayah.surah.name,
-      numberInSurah: ayah.numberInSurah,
-      timestamp: Date.now(),
+      juz, ayahNumber: ayah.number, surahNumber: ayah.surah.number,
+      surahName: ayah.surah.englishName, surahArabic: ayah.surah.name,
+      numberInSurah: ayah.numberInSurah, timestamp: Date.now(),
     };
     setBookmark(bm);
     localStorage.setItem("quran-bookmark-v2", JSON.stringify(bm));
@@ -155,14 +147,24 @@ const QuranReader = () => {
     }
   }, [totalPages, currentPage]);
 
+  // RTL swipe: swipe left = previous page, swipe right = next page (Quran reading direction)
   const handleDragEnd = useCallback((_: any, info: PanInfo) => {
     const threshold = 50;
-    if (info.offset.x < -threshold && currentPage < totalPages - 1) {
+    if (info.offset.x > threshold && currentPage < totalPages - 1) {
       goToPage(currentPage + 1);
-    } else if (info.offset.x > threshold && currentPage > 0) {
+    } else if (info.offset.x < -threshold && currentPage > 0) {
       goToPage(currentPage - 1);
     }
   }, [currentPage, totalPages, goToPage]);
+
+  // Auto-advance from audio player
+  const handleRequestNextPage = useCallback(() => {
+    if (currentPage < totalPages - 1) {
+      setSwipeDirection(1);
+      setCurrentPage((p) => p + 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [currentPage, totalPages]);
 
   const surahGroups: { surah: Ayah["surah"]; ayahs: Ayah[] }[] = [];
   pageAyahs.forEach((ayah) => {
@@ -174,7 +176,6 @@ const QuranReader = () => {
     }
   });
 
-  // Scroll to playing ayah
   useEffect(() => {
     if (playingAyah) {
       const el = document.getElementById(`ayah-${playingAyah}`);
@@ -186,13 +187,13 @@ const QuranReader = () => {
     <div className="relative min-h-screen pb-20">
       <FloatingDecorations />
 
-      {/* Sticky Audio Player */}
       {!loading && ayahs.length > 0 && (
         <QuranAudioPlayer
           ayahs={ayahs}
           currentPage={currentPage}
           ayahsPerPage={AYAHS_PER_PAGE}
           onAyahPlaying={setPlayingAyah}
+          onRequestNextPage={handleRequestNextPage}
         />
       )}
 
@@ -217,7 +218,6 @@ const QuranReader = () => {
           </div>
         </div>
 
-        {/* Bookmark info */}
         {bookmark && (
           <div className="mb-4 text-center">
             <p className="text-xs text-muted-foreground">
@@ -226,12 +226,11 @@ const QuranReader = () => {
           </div>
         )}
 
-        {/* Header */}
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold text-gradient-islamic">Juz {juz}</h1>
           {totalPages > 0 && (
             <p className="text-xs text-muted-foreground mt-1">
-              Page {currentPage + 1} of {totalPages} · Swipe to navigate
+              Page {currentPage + 1} of {totalPages} · Swipe ← to turn page
             </p>
           )}
         </motion.div>
@@ -242,15 +241,16 @@ const QuranReader = () => {
           </div>
         ) : (
           <>
-            <motion.div drag="x" dragConstraints={{ left: 0, right: 0 }} dragElastic={0.15} onDragEnd={handleDragEnd} className="touch-pan-y cursor-grab active:cursor-grabbing">
+            <motion.div drag="x" dragConstraints={{ left: 0, right: 0 }} dragElastic={0.15} onDragEnd={handleDragEnd} className="touch-pan-y cursor-grab active:cursor-grabbing" dir="rtl">
               <AnimatePresence mode="wait" custom={swipeDirection}>
                 <motion.div
                   key={`${currentPage}-${showTranslation}`}
                   custom={swipeDirection}
-                  initial={{ opacity: 0, x: swipeDirection >= 0 ? 60 : -60 }}
+                  initial={{ opacity: 0, x: swipeDirection >= 0 ? -60 : 60 }}
                   animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: swipeDirection >= 0 ? -60 : 60 }}
+                  exit={{ opacity: 0, x: swipeDirection >= 0 ? 60 : -60 }}
                   transition={{ duration: 0.25 }}
+                  dir="ltr"
                 >
                   {showTranslation ? (
                     <div className="space-y-5">
@@ -285,7 +285,7 @@ const QuranReader = () => {
                                       <span className="flex-shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground">
                                         {ayah.numberInSurah}
                                       </span>
-                                      <button onClick={(e) => { e.stopPropagation(); bookmarkAyah(ayah); }} className="opacity-0 group-hover:opacity-100 transition-opacity p-1" title="Bookmark">
+                                      <button onClick={(e) => { e.stopPropagation(); bookmarkAyah(ayah); }} className="opacity-0 group-hover:opacity-100 sm:opacity-100 transition-opacity p-1" title="Bookmark">
                                         <Bookmark size={12} className="text-muted-foreground hover:text-islamic-gold" />
                                       </button>
                                     </div>
@@ -304,14 +304,14 @@ const QuranReader = () => {
                       ))}
                     </div>
                   ) : (
-                    <div className="rounded-2xl p-5 sm:p-8 md:p-10 shadow-xl border border-accent/20 relative overflow-hidden bg-muted/30">
-                      <div className="absolute inset-2 sm:inset-4 border border-accent/15 rounded-xl pointer-events-none" />
-                      <div className="absolute inset-3 sm:inset-6 border border-accent/10 rounded-lg pointer-events-none" />
+                    /* Simple Mushaf-style page */
+                    <div className="rounded-2xl p-5 sm:p-8 md:p-10 shadow-lg border border-border relative overflow-hidden bg-card">
+                      <div className="absolute inset-3 sm:inset-5 border border-accent/10 rounded-xl pointer-events-none" />
                       {surahGroups.map((group, gi) => (
                         <div key={`${group.surah.number}-${group.ayahs[0].numberInSurah}`}>
                           {(gi > 0 || group.ayahs[0].numberInSurah === 1) && (
                             <div className="my-6 text-center">
-                              <div className="inline-block bg-accent/10 border border-accent/25 rounded-xl px-6 py-3">
+                              <div className="inline-block bg-accent/10 border border-accent/20 rounded-xl px-6 py-3">
                                 <p className="arabic-font text-xl sm:text-2xl text-islamic-gold">{group.surah.name}</p>
                                 <p className="text-xs text-muted-foreground mt-1">{group.surah.englishName}</p>
                               </div>
@@ -319,7 +319,7 @@ const QuranReader = () => {
                           )}
                         </div>
                       ))}
-                      <div className="arabic-font text-right text-[1.35rem] sm:text-2xl md:text-[1.7rem] leading-[2.6] sm:leading-[3] relative z-10 select-text font-bold" dir="rtl">
+                      <div className="arabic-font text-right text-[1.4rem] sm:text-2xl md:text-[1.7rem] leading-[2.8] sm:leading-[3.2] relative z-10 select-text" dir="rtl">
                         {pageAyahs.map((ayah) => {
                           const isBookmarked = bookmark?.ayahNumber === ayah.number;
                           const isAudioPlaying = playingAyah === ayah.number;
@@ -329,18 +329,13 @@ const QuranReader = () => {
                               id={`ayah-${ayah.number}`}
                               ref={isBookmarked ? bookmarkRef : undefined}
                               className={`relative group/ayah cursor-pointer transition-colors duration-300 ${
-                                isAudioPlaying ? "bg-primary/15 rounded px-1" :
-                                isBookmarked ? "bg-accent/20 rounded px-1" : "hover:bg-accent/5 rounded"
+                                isAudioPlaying ? "bg-primary/15 rounded-sm px-0.5" :
+                                isBookmarked ? "bg-accent/20 rounded-sm px-0.5" : "hover:bg-accent/5 rounded-sm"
                               }`}
                               onClick={() => bookmarkAyah(ayah)}
                             >
-                              {isBookmarked && (
-                                <span className="absolute -top-5 right-0 flex items-center gap-0.5 text-[9px] text-islamic-gold font-quicksand whitespace-nowrap font-normal">
-                                  <Bookmark size={8} fill="currentColor" /> Last read
-                                </span>
-                              )}
                               {ayah.text}{" "}
-                              <span className="inline-flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-accent/40 text-islamic-gold text-sm sm:text-base mx-0.5 align-middle font-normal">
+                              <span className="inline-flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-accent/30 text-islamic-gold text-sm sm:text-base mx-0.5 align-middle font-normal">
                                 {toArabicNum(ayah.numberInSurah)}
                               </span>{" "}
                             </span>
@@ -353,7 +348,7 @@ const QuranReader = () => {
               </AnimatePresence>
             </motion.div>
 
-            {/* Page dots */}
+            {/* Page navigation */}
             {totalPages > 1 && (
               <div className="flex items-center justify-center gap-2 mt-6 flex-wrap">
                 <div className="flex items-center gap-1.5">
