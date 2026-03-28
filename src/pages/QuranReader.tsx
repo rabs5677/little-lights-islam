@@ -304,22 +304,24 @@ const QuranReader = () => {
                       ))}
                     </div>
                   ) : (
-                    /* Simple Mushaf-style page */
-                    <div className="rounded-2xl p-5 sm:p-8 md:p-10 shadow-lg border border-border relative overflow-hidden bg-card">
-                      <div className="absolute inset-3 sm:inset-5 border border-accent/10 rounded-xl pointer-events-none" />
+                    /* Mushaf-style page — realistic Quran look */
+                    <div className="rounded-2xl p-4 sm:p-8 md:p-10 shadow-xl border-2 border-islamic-gold/20 relative overflow-hidden" style={{ background: "linear-gradient(180deg, hsl(40 40% 97%), hsl(40 30% 94%))" }}>
+                      <div className="dark:hidden absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2.8rem, hsl(40 30% 70%) 2.8rem, hsl(40 30% 70%) 2.85rem)" }} />
+                      <div className="absolute inset-2 sm:inset-4 border-2 border-islamic-gold/15 rounded-xl pointer-events-none" />
+                      <div className="absolute inset-3 sm:inset-5 border border-islamic-gold/10 rounded-lg pointer-events-none" />
                       {surahGroups.map((group, gi) => (
                         <div key={`${group.surah.number}-${group.ayahs[0].numberInSurah}`}>
                           {(gi > 0 || group.ayahs[0].numberInSurah === 1) && (
                             <div className="my-6 text-center">
-                              <div className="inline-block bg-accent/10 border border-accent/20 rounded-xl px-6 py-3">
-                                <p className="arabic-font text-xl sm:text-2xl text-islamic-gold">{group.surah.name}</p>
-                                <p className="text-xs text-muted-foreground mt-1">{group.surah.englishName}</p>
+                              <div className="inline-block bg-islamic-gold/10 border-2 border-islamic-gold/25 rounded-2xl px-8 py-4 shadow-sm">
+                                <p className="arabic-font text-2xl sm:text-3xl text-islamic-gold font-bold">{group.surah.name}</p>
+                                <p className="text-xs text-muted-foreground mt-1 font-medium">{group.surah.englishName}</p>
                               </div>
                             </div>
                           )}
                         </div>
                       ))}
-                      <div className="arabic-font text-right text-[1.4rem] sm:text-2xl md:text-[1.7rem] leading-[2.8] sm:leading-[3.2] relative z-10 select-text" dir="rtl">
+                      <div className="arabic-font text-right text-[1.5rem] sm:text-[1.7rem] md:text-[1.9rem] leading-[3] sm:leading-[3.4] relative z-10 select-text dark:text-[hsl(40,30%,85%)]" dir="rtl" style={{ textAlign: "justify", textAlignLast: "center" }}>
                         {pageAyahs.map((ayah) => {
                           const isBookmarked = bookmark?.ayahNumber === ayah.number;
                           const isAudioPlaying = playingAyah === ayah.number;
@@ -328,15 +330,15 @@ const QuranReader = () => {
                               key={ayah.number}
                               id={`ayah-${ayah.number}`}
                               ref={isBookmarked ? bookmarkRef : undefined}
-                              className={`relative group/ayah cursor-pointer transition-colors duration-300 ${
-                                isAudioPlaying ? "bg-primary/15 rounded-sm px-0.5" :
-                                isBookmarked ? "bg-accent/20 rounded-sm px-0.5" : "hover:bg-accent/5 rounded-sm"
+                              className={`relative group/ayah cursor-pointer transition-all duration-300 ${
+                                isAudioPlaying ? "bg-islamic-gold/20 rounded-md px-1" :
+                                isBookmarked ? "bg-primary/10 rounded-md px-1" : "hover:bg-islamic-gold/5 rounded-md"
                               }`}
                               onClick={() => bookmarkAyah(ayah)}
                             >
                               {ayah.text}{" "}
-                              <span className="inline-flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-accent/30 text-islamic-gold text-sm sm:text-base mx-0.5 align-middle font-normal">
-                                {toArabicNum(ayah.numberInSurah)}
+                              <span className="inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 text-islamic-gold text-sm sm:text-base mx-0.5 align-middle font-normal" style={{ fontFamily: "serif" }}>
+                                ﴿{toArabicNum(ayah.numberInSurah)}﴾
                               </span>{" "}
                             </span>
                           );
