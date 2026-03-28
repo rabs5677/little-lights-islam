@@ -313,9 +313,9 @@ const QuranReader = () => {
                         <div key={`${group.surah.number}-${group.ayahs[0].numberInSurah}`}>
                           {(gi > 0 || group.ayahs[0].numberInSurah === 1) && (
                             <div className="my-6 text-center">
-                              <div className="inline-block bg-accent/10 border border-accent/20 rounded-xl px-6 py-3">
-                                <p className="arabic-font text-xl sm:text-2xl text-islamic-gold">{group.surah.name}</p>
-                                <p className="text-xs text-muted-foreground mt-1">{group.surah.englishName}</p>
+                              <div className="inline-block bg-islamic-gold/10 border-2 border-islamic-gold/25 rounded-2xl px-8 py-4 shadow-sm">
+                                <p className="arabic-font text-2xl sm:text-3xl text-islamic-gold font-bold">{group.surah.name}</p>
+                                <p className="text-xs text-muted-foreground mt-1 font-medium">{group.surah.englishName}</p>
                               </div>
                             </div>
                           )}
