@@ -304,9 +304,11 @@ const QuranReader = () => {
                       ))}
                     </div>
                   ) : (
-                    /* Simple Mushaf-style page */
-                    <div className="rounded-2xl p-5 sm:p-8 md:p-10 shadow-lg border border-border relative overflow-hidden bg-card">
-                      <div className="absolute inset-3 sm:inset-5 border border-accent/10 rounded-xl pointer-events-none" />
+                    /* Mushaf-style page — realistic Quran look */
+                    <div className="rounded-2xl p-4 sm:p-8 md:p-10 shadow-xl border-2 border-islamic-gold/20 relative overflow-hidden" style={{ background: "linear-gradient(180deg, hsl(40 40% 97%), hsl(40 30% 94%))" }}>
+                      <div className="dark:hidden absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2.8rem, hsl(40 30% 70%) 2.8rem, hsl(40 30% 70%) 2.85rem)" }} />
+                      <div className="absolute inset-2 sm:inset-4 border-2 border-islamic-gold/15 rounded-xl pointer-events-none" />
+                      <div className="absolute inset-3 sm:inset-5 border border-islamic-gold/10 rounded-lg pointer-events-none" />
                       {surahGroups.map((group, gi) => (
                         <div key={`${group.surah.number}-${group.ayahs[0].numberInSurah}`}>
                           {(gi > 0 || group.ayahs[0].numberInSurah === 1) && (
