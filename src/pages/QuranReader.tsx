@@ -39,6 +39,49 @@ const recordReadingDay = () => {
   }
 };
 
+// Simple tajweed-like coloring: color certain Arabic letter patterns
+const colorizeAyah = (text: string): React.ReactNode[] => {
+  const parts: React.ReactNode[] = [];
+  let i = 0;
+  const chars = [...text];
+
+  // Noon sakin / tanween markers
+  const noonChars = new Set(["ً", "ٌ", "ٍ"]);
+  // Madd letters
+  const maddLetters = new Set(["ا", "و", "ي", "ى"]);
+  // Shaddah
+  const shaddah = "ّ";
+  // Ghunna-related
+  const ghunnaLetters = new Set(["ن", "م"]);
+
+  for (let idx = 0; idx < chars.length; idx++) {
+    const ch = chars[idx];
+    const next = chars[idx + 1] || "";
+    const prev = chars[idx - 1] || "";
+
+    // Shaddah - red
+    if (ch === shaddah) {
+      parts.push(<span key={idx} className="text-[hsl(0,70%,55%)] dark:text-[hsl(0,80%,65%)]">{ch}</span>);
+    }
+    // Tanween - green
+    else if (noonChars.has(ch)) {
+      parts.push(<span key={idx} className="text-[hsl(140,60%,40%)] dark:text-[hsl(140,70%,55%)]">{ch}</span>);
+    }
+    // Noon with sukoon or ghunna letters in specific patterns - blue  
+    else if (ghunnaLetters.has(ch) && (next === "ْ" || next === shaddah)) {
+      parts.push(<span key={idx} className="text-[hsl(210,70%,50%)] dark:text-[hsl(210,80%,65%)]">{ch}</span>);
+    }
+    // Madd letters following fathah/kasrah/dammah - pink/magenta
+    else if (maddLetters.has(ch) && (prev === "َ" || prev === "ِ" || prev === "ُ")) {
+      parts.push(<span key={idx} className="text-[hsl(320,60%,50%)] dark:text-[hsl(320,70%,65%)]">{ch}</span>);
+    }
+    else {
+      parts.push(ch);
+    }
+  }
+  return parts;
+};
+
 const QuranReader = () => {
   const { juzNumber } = useParams();
   const juz = parseInt(juzNumber || "1");
@@ -147,7 +190,6 @@ const QuranReader = () => {
     }
   }, [totalPages, currentPage]);
 
-  // RTL swipe: swipe left = previous page, swipe right = next page (Quran reading direction)
   const handleDragEnd = useCallback((_: any, info: PanInfo) => {
     const threshold = 50;
     if (info.offset.x > threshold && currentPage < totalPages - 1) {
@@ -157,7 +199,6 @@ const QuranReader = () => {
     }
   }, [currentPage, totalPages, goToPage]);
 
-  // Auto-advance from audio player
   const handleRequestNextPage = useCallback(() => {
     if (currentPage < totalPages - 1) {
       setSwipeDirection(1);
@@ -304,16 +345,27 @@ const QuranReader = () => {
                       ))}
                     </div>
                   ) : (
-                    /* Mushaf-style page — realistic Quran look */
-                    <div className="rounded-2xl p-4 sm:p-8 md:p-10 shadow-xl border-2 border-islamic-gold/20 relative overflow-hidden" style={{ background: "linear-gradient(180deg, hsl(40 40% 97%), hsl(40 30% 94%))" }}>
-                      <div className="dark:hidden absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2.8rem, hsl(40 30% 70%) 2.8rem, hsl(40 30% 70%) 2.85rem)" }} />
-                      <div className="absolute inset-2 sm:inset-4 border-2 border-islamic-gold/15 rounded-xl pointer-events-none" />
-                      <div className="absolute inset-3 sm:inset-5 border border-islamic-gold/10 rounded-lg pointer-events-none" />
+                    /* Mushaf-style page */
+                    <div className="mushaf-page rounded-2xl p-5 sm:p-8 md:p-10 shadow-xl relative overflow-hidden border-2 border-islamic-gold/30 bg-[hsl(40,45%,96%)] dark:bg-[hsl(220,25%,15%)]">
+                      {/* Decorative floral border */}
+                      <div className="absolute inset-0 pointer-events-none">
+                        <div className="absolute inset-2 sm:inset-3 border-[3px] border-islamic-gold/25 rounded-xl" />
+                        <div className="absolute inset-3 sm:inset-4 border border-islamic-gold/15 rounded-lg" />
+                        {/* Corner ornaments */}
+                        <div className="absolute top-2 left-2 w-6 h-6 border-t-2 border-l-2 border-islamic-gold/40 rounded-tl-lg" />
+                        <div className="absolute top-2 right-2 w-6 h-6 border-t-2 border-r-2 border-islamic-gold/40 rounded-tr-lg" />
+                        <div className="absolute bottom-2 left-2 w-6 h-6 border-b-2 border-l-2 border-islamic-gold/40 rounded-bl-lg" />
+                        <div className="absolute bottom-2 right-2 w-6 h-6 border-b-2 border-r-2 border-islamic-gold/40 rounded-br-lg" />
+                      </div>
+                      {/* Lined paper effect (light mode only) */}
+                      <div className="dark:hidden absolute inset-0 opacity-[0.04] pointer-events-none" style={{ backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 3rem, hsl(40,30%,60%) 3rem, hsl(40,30%,60%) 3.05rem)" }} />
+
+                      {/* Surah headers */}
                       {surahGroups.map((group, gi) => (
-                        <div key={`${group.surah.number}-${group.ayahs[0].numberInSurah}`}>
+                        <div key={`header-${group.surah.number}-${group.ayahs[0].numberInSurah}`}>
                           {(gi > 0 || group.ayahs[0].numberInSurah === 1) && (
-                            <div className="my-6 text-center">
-                              <div className="inline-block bg-islamic-gold/10 border-2 border-islamic-gold/25 rounded-2xl px-8 py-4 shadow-sm">
+                            <div className="my-5 text-center relative z-10">
+                              <div className="inline-block bg-gradient-to-r from-islamic-gold/10 via-islamic-gold/20 to-islamic-gold/10 border-2 border-islamic-gold/30 rounded-2xl px-8 py-4 shadow-sm">
                                 <p className="arabic-font text-2xl sm:text-3xl text-islamic-gold font-bold">{group.surah.name}</p>
                                 <p className="text-xs text-muted-foreground mt-1 font-medium">{group.surah.englishName}</p>
                               </div>
@@ -321,7 +373,9 @@ const QuranReader = () => {
                           )}
                         </div>
                       ))}
-                      <div className="arabic-font text-right text-[1.5rem] sm:text-[1.7rem] md:text-[1.9rem] leading-[3] sm:leading-[3.4] relative z-10 select-text dark:text-[hsl(40,30%,85%)]" dir="rtl" style={{ textAlign: "justify", textAlignLast: "center" }}>
+
+                      {/* Ayah text with tajweed coloring */}
+                      <div className="arabic-font text-right text-[1.6rem] sm:text-[1.9rem] md:text-[2.1rem] leading-[3.2] sm:leading-[3.6] relative z-10 select-text text-foreground dark:text-[hsl(40,30%,88%)]" dir="rtl" style={{ textAlign: "justify", textAlignLast: "center" }}>
                         {pageAyahs.map((ayah) => {
                           const isBookmarked = bookmark?.ayahNumber === ayah.number;
                           const isAudioPlaying = playingAyah === ayah.number;
@@ -331,18 +385,23 @@ const QuranReader = () => {
                               id={`ayah-${ayah.number}`}
                               ref={isBookmarked ? bookmarkRef : undefined}
                               className={`relative group/ayah cursor-pointer transition-all duration-300 ${
-                                isAudioPlaying ? "bg-islamic-gold/20 rounded-md px-1" :
-                                isBookmarked ? "bg-primary/10 rounded-md px-1" : "hover:bg-islamic-gold/5 rounded-md"
+                                isAudioPlaying ? "bg-islamic-gold/25 dark:bg-islamic-gold/20 rounded-md px-1" :
+                                isBookmarked ? "bg-primary/10 dark:bg-primary/15 rounded-md px-1" : "hover:bg-islamic-gold/10 rounded-md"
                               }`}
                               onClick={() => bookmarkAyah(ayah)}
                             >
-                              {ayah.text}{" "}
-                              <span className="inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 text-islamic-gold text-sm sm:text-base mx-0.5 align-middle font-normal" style={{ fontFamily: "serif" }}>
+                              {colorizeAyah(ayah.text)}{" "}
+                              <span className="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 text-islamic-gold text-sm sm:text-base mx-0.5 align-middle font-normal" style={{ fontFamily: "serif" }}>
                                 ﴿{toArabicNum(ayah.numberInSurah)}﴾
                               </span>{" "}
                             </span>
                           );
                         })}
+                      </div>
+
+                      {/* Page number footer */}
+                      <div className="text-center mt-6 relative z-10">
+                        <span className="text-xs text-muted-foreground">{currentPage + 1}</span>
                       </div>
                     </div>
                   )}
@@ -367,13 +426,12 @@ const QuranReader = () => {
                         key={pageIdx}
                         onClick={() => goToPage(pageIdx)}
                         className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
-                          pageIdx === currentPage ? "bg-islamic-gold w-6 rounded-full" : "bg-muted hover:bg-muted-foreground/30"
+                          pageIdx === currentPage ? "bg-primary scale-125" : "bg-muted hover:bg-muted-foreground/30"
                         }`}
                       />
                     );
                   })}
                 </div>
-                <span className="text-xs text-muted-foreground ml-2">{currentPage + 1}/{totalPages}</span>
               </div>
             )}
           </>

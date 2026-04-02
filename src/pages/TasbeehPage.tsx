@@ -87,7 +87,6 @@ const TasbeehPage = () => {
   const [todayRecords, setTodayRecords] = useState<TasbeehRecord[]>(loadTodayRecords);
   const [customDhikrName, setCustomDhikrName] = useState("");
   const [customTarget, setCustomTarget] = useState("");
-  const [showSetup, setShowSetup] = useState(true);
 
   const activeSession = sessions.find(s => s.id === activeId);
   const pausedSessions = sessions.filter(s => s.status === "paused");
@@ -100,12 +99,10 @@ const TasbeehPage = () => {
   useEffect(() => { saveSessions(sessions); }, [sessions]);
 
   const startSession = (target: number, name?: string) => {
-    // Pause current active session
     const updated = sessions.map(s => s.status === "active" ? { ...s, status: "paused" as const } : s);
     const newSession: ActiveSession = { id: genId(), dhikrName: name || customDhikrName || "Custom Dhikr", target, count: 0, status: "active", createdAt: Date.now() };
     setSessions([...updated, newSession]);
     setActiveId(newSession.id);
-    setShowSetup(false);
     setCustomDhikrName("");
     setCustomTarget("");
   };
@@ -117,13 +114,11 @@ const TasbeehPage = () => {
       return s;
     }));
     setActiveId(id);
-    setShowSetup(false);
   };
 
   const pauseSession = (id: string) => {
     setSessions(prev => prev.map(s => s.id === id ? { ...s, status: "paused" as const } : s));
     setActiveId(null);
-    setShowSetup(true);
   };
 
   const checkMilestones = (name: string, c: number) => {
@@ -145,11 +140,9 @@ const TasbeehPage = () => {
       saveTodayRecord({ dhikrName: activeSession.dhikrName, target: activeSession.target, count: next, completed: true, timestamp: Date.now() });
       setTodayRecords(loadTodayRecords());
       checkMilestones(activeSession.dhikrName, next);
-      // Remove from sessions list after completing
       setTimeout(() => {
         setSessions(prev => prev.filter(s => s.id !== activeSession.id));
         setActiveId(null);
-        setShowSetup(true);
       }, 2000);
     }
   }, [activeSession]);
@@ -162,7 +155,7 @@ const TasbeehPage = () => {
       checkMilestones(s.dhikrName, s.count);
     }
     setSessions(prev => prev.filter(x => x.id !== id));
-    if (activeId === id) { setActiveId(null); setShowSetup(true); }
+    if (activeId === id) setActiveId(null);
   };
 
   const progress = activeSession ? Math.min(100, (activeSession.count / activeSession.target) * 100) : 0;
@@ -213,19 +206,16 @@ const TasbeehPage = () => {
         )}
 
         {/* Active counting view */}
-        {activeSession && !showSetup && (
-          <div className="space-y-6">
-            {/* Encouragement */}
+        {activeSession && activeSession.status === "active" && (
+          <div className="space-y-6 mb-8">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-2xl p-3 text-center">
               <p className="text-sm font-medium">{getMessage()}</p>
             </motion.div>
 
-            {/* Dhikr badge */}
             <div className="text-center">
               <span className="inline-block bg-primary/10 text-primary text-xs font-medium px-3 py-1 rounded-full">{activeSession.dhikrName}</span>
             </div>
 
-            {/* Counter circle */}
             <div className="flex flex-col items-center">
               {isCompleted && (
                 <motion.div initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} className="text-4xl mb-4">🎉✨🤲</motion.div>
@@ -251,46 +241,43 @@ const TasbeehPage = () => {
                 <button onClick={() => pauseSession(activeSession.id)} className="px-3 py-1.5 rounded-xl glass-card text-xs font-medium flex items-center gap-1">
                   <Pause size={12} /> Pause
                 </button>
-                <button onClick={() => { setShowSetup(true); }} className="text-xs text-muted-foreground underline">New</button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Setup view */}
-        {(showSetup && !activeSession) || (showSetup && activeSession?.status !== "active") ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-            <div className="glass-card rounded-2xl p-6 text-center">
-              <Target className="mx-auto mb-3 text-islamic-gold" size={32} />
-              <h2 className="font-bold text-lg mb-4">Start New Dhikr</h2>
-              <div className="mb-4">
-                <input type="text" value={customDhikrName} onChange={e => setCustomDhikrName(e.target.value)} placeholder="Dhikr name (e.g. Astaghfirullah)" className="w-full px-4 py-2.5 rounded-xl bg-background border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring text-center" />
-              </div>
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                {[33, 100, 500, 1000].map(t => (
-                  <button key={t} onClick={() => startSession(t)} className="glass-card rounded-xl py-3 font-bold text-lg hover:scale-105 active:scale-95 transition-transform">{t}</button>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <input type="number" value={customTarget} onChange={e => setCustomTarget(e.target.value)} placeholder="Custom count..." className="flex-1 px-4 py-2.5 rounded-xl bg-background border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-                <button onClick={() => { const n = parseInt(customTarget); if (n > 0) startSession(n); }} className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium text-sm">Start</button>
-              </div>
+        {/* START NEW DHIKR — Always visible */}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 mb-8">
+          <div className="glass-card rounded-2xl p-6 text-center">
+            <Target className="mx-auto mb-3 text-islamic-gold" size={32} />
+            <h2 className="font-bold text-lg mb-4">Start New Dhikr</h2>
+            <div className="mb-4">
+              <input type="text" value={customDhikrName} onChange={e => setCustomDhikrName(e.target.value)} placeholder="Dhikr name (e.g. Astaghfirullah)" className="w-full px-4 py-2.5 rounded-xl bg-background border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring text-center" />
             </div>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              {[33, 100, 500, 1000].map(t => (
+                <button key={t} onClick={() => startSession(t)} className="glass-card rounded-xl py-3 font-bold text-lg hover:scale-105 active:scale-95 transition-transform">{t}</button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input type="number" value={customTarget} onChange={e => setCustomTarget(e.target.value)} placeholder="Custom count..." className="flex-1 px-4 py-2.5 rounded-xl bg-background border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+              <button onClick={() => { const n = parseInt(customTarget); if (n > 0) startSession(n); }} className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium text-sm">Start</button>
+            </div>
+          </div>
 
-            {/* Quick start */}
-            <div className="space-y-2">
-              <p className="text-sm font-semibold text-center text-muted-foreground">Quick Start</p>
-              <div className="grid grid-cols-2 gap-2">
-                {SUGGESTIONS.slice(0, 6).map(s => (
-                  <button key={s.transliteration} onClick={() => startSession(s.target, s.transliteration)} className="glass-card rounded-xl p-3 text-left hover:scale-[1.02] active:scale-[0.98] transition-transform">
-                    <p className="text-xs font-medium">{s.transliteration}</p>
-                    <p className="text-[10px] text-muted-foreground">{s.target}×</p>
-                  </button>
-                ))}
-              </div>
+          {/* Quick start */}
+          <div className="space-y-2">
+            <p className="text-sm font-semibold text-center text-muted-foreground">Quick Start</p>
+            <div className="grid grid-cols-2 gap-2">
+              {SUGGESTIONS.slice(0, 6).map(s => (
+                <button key={s.transliteration} onClick={() => startSession(s.target, s.transliteration)} className="glass-card rounded-xl p-3 text-left hover:scale-[1.02] active:scale-[0.98] transition-transform">
+                  <p className="text-xs font-medium">{s.transliteration}</p>
+                  <p className="text-[10px] text-muted-foreground">{s.target}×</p>
+                </button>
+              ))}
             </div>
-          </motion.div>
-        ) : null}
+          </div>
+        </motion.div>
 
         {/* Achievements */}
         {todayAchievements.length > 0 && (

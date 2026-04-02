@@ -23,6 +23,7 @@ const QuranAudioPlayer = ({ ayahs, currentPage, ayahsPerPage, onAyahPlaying, onR
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [audioLang, setAudioLang] = useState<"ar" | "en">("ar");
+  const [audioError, setAudioError] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const autoAdvanceRef = useRef(false);
 
@@ -32,6 +33,7 @@ const QuranAudioPlayer = ({ ayahs, currentPage, ayahsPerPage, onAyahPlaying, onR
 
   const getAudioUrl = (ayahNumber: number) => {
     if (audioLang === "en") {
+      // Use Ibrahim Walk English translation audio
       return `https://cdn.islamic.network/quran/audio/128/en.walk/${ayahNumber}.mp3`;
     }
     return `https://cdn.islamic.network/quran/audio/128/ar.alafasy/${ayahNumber}.mp3`;
@@ -41,6 +43,7 @@ const QuranAudioPlayer = ({ ayahs, currentPage, ayahsPerPage, onAyahPlaying, onR
     if (idx < 0 || idx >= pageAyahs.length) return;
     setCurrentAyahIdx(idx);
     setProgress(0);
+    setAudioError(false);
     const ayah = pageAyahs[idx];
     if (!ayah) return;
     if (audioRef.current) {
@@ -54,6 +57,7 @@ const QuranAudioPlayer = ({ ayahs, currentPage, ayahsPerPage, onAyahPlaying, onR
   useEffect(() => {
     setCurrentAyahIdx(0);
     setProgress(0);
+    setAudioError(false);
     if (autoAdvanceRef.current) {
       autoAdvanceRef.current = false;
       const firstAyah = ayahs.slice(currentPage * ayahsPerPage, (currentPage + 1) * ayahsPerPage)[0];
@@ -73,19 +77,21 @@ const QuranAudioPlayer = ({ ayahs, currentPage, ayahsPerPage, onAyahPlaying, onR
 
   // When language changes, reload current ayah
   useEffect(() => {
+    setAudioError(false);
     if (currentAyah && audioRef.current) {
       const wasPlaying = isPlaying;
       audioRef.current.pause();
       audioRef.current.src = getAudioUrl(currentAyah.number);
       audioRef.current.load();
       if (wasPlaying) {
-        audioRef.current.play().catch(() => {});
+        audioRef.current.play().catch(() => setAudioError(true));
       }
     }
   }, [audioLang]);
 
   const togglePlay = useCallback(() => {
     if (!audioRef.current || !currentAyah) return;
+    setAudioError(false);
     if (isPlaying) {
       audioRef.current.pause();
       setIsPlaying(false);
@@ -94,7 +100,7 @@ const QuranAudioPlayer = ({ ayahs, currentPage, ayahsPerPage, onAyahPlaying, onR
         audioRef.current.src = getAudioUrl(currentAyah.number);
         audioRef.current.load();
       }
-      audioRef.current.play().catch(() => {});
+      audioRef.current.play().catch(() => setAudioError(true));
       setIsPlaying(true);
       onAyahPlaying?.(currentAyah.number);
     }
@@ -127,7 +133,7 @@ const QuranAudioPlayer = ({ ayahs, currentPage, ayahsPerPage, onAyahPlaying, onR
     if (!audio) return;
     const onTimeUpdate = () => { setProgress(audio.currentTime); setDuration(audio.duration || 0); };
     const onEnded = () => playNext();
-    const onError = () => setIsPlaying(false);
+    const onError = () => { setIsPlaying(false); setAudioError(true); };
     audio.addEventListener("timeupdate", onTimeUpdate);
     audio.addEventListener("ended", onEnded);
     audio.addEventListener("error", onError);
@@ -138,7 +144,7 @@ const QuranAudioPlayer = ({ ayahs, currentPage, ayahsPerPage, onAyahPlaying, onR
 
   return (
     <>
-      <audio ref={audioRef} preload="auto" />
+      <audio ref={audioRef} preload="auto" crossOrigin="anonymous" />
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="sticky top-14 z-40 glass-card border-b border-border shadow-md px-4 py-2.5">
         <div className="max-w-3xl mx-auto">
           <div className="w-full h-1 rounded-full bg-muted mb-2 cursor-pointer" onClick={e => {
@@ -155,11 +161,18 @@ const QuranAudioPlayer = ({ ayahs, currentPage, ayahsPerPage, onAyahPlaying, onR
                 <p className="text-xs font-medium truncate">
                   {currentAyah ? `${currentAyah.surah.englishName} — Ayah ${currentAyah.numberInSurah}` : "Select an ayah"}
                 </p>
-                <p className="text-[10px] text-muted-foreground">{audioLang === "ar" ? "Mishary Rashid Alafasy" : "Ibrahim Walk (English)"}</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {audioLang === "ar" ? "Mishary Rashid Alafasy" : "Ibrahim Walk (English)"}
+                  {audioError && <span className="text-destructive ml-1">· Audio unavailable</span>}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-1.5">
-              <button onClick={() => setAudioLang(l => l === "ar" ? "en" : "ar")} className={`p-1.5 rounded-full transition-colors ${audioLang === "en" ? "bg-primary/15 text-primary" : "hover:bg-muted text-muted-foreground"}`} title="Toggle Arabic/English audio">
+              <button
+                onClick={() => setAudioLang(l => l === "ar" ? "en" : "ar")}
+                className={`p-1.5 rounded-full transition-colors text-xs font-bold ${audioLang === "en" ? "bg-primary/15 text-primary" : "hover:bg-muted text-muted-foreground"}`}
+                title={audioLang === "ar" ? "Switch to English" : "Switch to Arabic"}
+              >
                 <Globe size={14} />
               </button>
               <button onClick={replay} className="p-1.5 rounded-full hover:bg-muted transition-colors" title="Replay">
