@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, RotateCcw, Target, Play, Pause, Trophy, Star, Plus, Check } from "lucide-react";
+import { ArrowLeft, RotateCcw, Target, Play, Pause, Trophy, Star } from "lucide-react";
 import FloatingDecorations from "@/components/FloatingDecorations";
+import { addXP, recordActivity, checkDhikrAchievements, getRandomEncouragement } from "@/lib/gamification";
 
 const SUGGESTIONS = [
   { text: "أَسْتَغْفِرُ اللَّهَ", transliteration: "Astaghfirullah", meaning: "I seek forgiveness from Allah", benefit: "Purifies the heart and erases sins.", target: 100 },
@@ -129,6 +130,7 @@ const TasbeehPage = () => {
         saveAchievement({ dhikrName: name, count: m, date: todayKey });
       }
     }
+    checkDhikrAchievements(c);
   };
 
   const handleCount = useCallback(() => {
@@ -140,6 +142,8 @@ const TasbeehPage = () => {
       saveTodayRecord({ dhikrName: activeSession.dhikrName, target: activeSession.target, count: next, completed: true, timestamp: Date.now() });
       setTodayRecords(loadTodayRecords());
       checkMilestones(activeSession.dhikrName, next);
+      addXP(5);
+      recordActivity("dhikr");
       setTimeout(() => {
         setSessions(prev => prev.filter(s => s.id !== activeSession.id));
         setActiveId(null);
@@ -153,6 +157,8 @@ const TasbeehPage = () => {
       saveTodayRecord({ dhikrName: s.dhikrName, target: s.target, count: s.count, completed: false, timestamp: Date.now() });
       setTodayRecords(loadTodayRecords());
       checkMilestones(s.dhikrName, s.count);
+      addXP(Math.floor(s.count / 10));
+      recordActivity("dhikr");
     }
     setSessions(prev => prev.filter(x => x.id !== id));
     if (activeId === id) setActiveId(null);
