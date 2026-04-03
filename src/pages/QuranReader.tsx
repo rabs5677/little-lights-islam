@@ -4,6 +4,7 @@ import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { ArrowLeft, Bookmark, BookOpen, Eye, EyeOff, Loader2 } from "lucide-react";
 import FloatingDecorations from "@/components/FloatingDecorations";
 import QuranAudioPlayer from "@/components/QuranAudioPlayer";
+import { addXP, recordActivity } from "@/lib/gamification";
 
 interface Ayah {
   number: number;
@@ -36,6 +37,8 @@ const recordReadingDay = () => {
     days.push(today);
     if (days.length > 365) days.shift();
     localStorage.setItem("quran-reading-days", JSON.stringify(days));
+    addXP(10);
+    recordActivity("quran");
   }
 };
 
