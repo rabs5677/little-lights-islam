@@ -4,6 +4,7 @@ import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { ArrowLeft, Bookmark, BookOpen, Eye, EyeOff, Loader2 } from "lucide-react";
 import FloatingDecorations from "@/components/FloatingDecorations";
 import QuranAudioPlayer from "@/components/QuranAudioPlayer";
+import { addXP, recordActivity } from "@/lib/gamification";
 
 interface Ayah {
   number: number;
