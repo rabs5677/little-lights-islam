@@ -37,6 +37,8 @@ const recordReadingDay = () => {
     days.push(today);
     if (days.length > 365) days.shift();
     localStorage.setItem("quran-reading-days", JSON.stringify(days));
+    addXP(10);
+    recordActivity("quran");
   }
 };
 

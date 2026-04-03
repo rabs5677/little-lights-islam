@@ -4,27 +4,26 @@ const FloatingDecorations = () => {
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
       {/* Stars */}
-      {[...Array(8)].map((_, i) => (
+      {[...Array(15)].map((_, i) => (
         <motion.div
           key={`star-${i}`}
           className="absolute text-islamic-gold animate-twinkle"
           style={{
-            top: `${10 + Math.random() * 80}%`,
-            left: `${5 + Math.random() * 90}%`,
-            animationDelay: `${i * 0.4}s`,
-            fontSize: `${8 + Math.random() * 12}px`,
+            top: `${5 + Math.random() * 90}%`,
+            left: `${2 + Math.random() * 96}%`,
+            animationDelay: `${i * 0.3}s`,
+            fontSize: `${6 + Math.random() * 10}px`,
+            opacity: 0.4 + Math.random() * 0.4,
           }}
         >
           ✦
         </motion.div>
       ))}
       {/* Crescent */}
-      <div
-        className="absolute top-20 right-10 text-4xl text-islamic-gold/30 animate-float-slow hidden md:block"
-      >
+      <div className="absolute top-20 right-10 text-4xl text-islamic-gold/20 animate-float-slow hidden md:block">
         ☽
       </div>
-      {/* Lantern shapes via CSS */}
+      {/* Lantern shapes */}
       <div
         className="absolute bottom-20 left-10 w-6 h-10 rounded-full bg-islamic-gold/10 animate-float hidden md:block"
         style={{ borderRadius: "40% 40% 50% 50%" }}
