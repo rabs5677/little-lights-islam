@@ -5,6 +5,50 @@ const STORAGE_KEYS = {
   streaks: "jannahpath-streaks",
   achievements: "jannahpath-achievements",
   activityLog: "jannahpath-activity-log",
+  coins: "jannahpath-coins",
+  customDhikr: "jannahpath-custom-dhikr",
+};
+
+// Coins — 1 dhikr = 1 coin
+export const getCoins = (): number =>
+  parseInt(localStorage.getItem(STORAGE_KEYS.coins) || "0", 10);
+
+export const addCoins = (n: number): number => {
+  const next = getCoins() + n;
+  localStorage.setItem(STORAGE_KEYS.coins, next.toString());
+  return next;
+};
+
+export const spendCoins = (n: number): boolean => {
+  const cur = getCoins();
+  if (cur < n) return false;
+  localStorage.setItem(STORAGE_KEYS.coins, (cur - n).toString());
+  return true;
+};
+
+export interface CustomDhikr {
+  id: string;
+  name: string;
+  arabic?: string;
+  target: number;
+}
+
+export const getCustomDhikr = (): CustomDhikr[] => {
+  const saved = localStorage.getItem(STORAGE_KEYS.customDhikr);
+  return saved ? JSON.parse(saved) : [];
+};
+
+export const addCustomDhikr = (d: Omit<CustomDhikr, "id">): CustomDhikr => {
+  const all = getCustomDhikr();
+  const item: CustomDhikr = { ...d, id: Math.random().toString(36).slice(2, 10) };
+  all.push(item);
+  localStorage.setItem(STORAGE_KEYS.customDhikr, JSON.stringify(all));
+  return item;
+};
+
+export const removeCustomDhikr = (id: string) => {
+  const all = getCustomDhikr().filter((d) => d.id !== id);
+  localStorage.setItem(STORAGE_KEYS.customDhikr, JSON.stringify(all));
 };
 
 export interface StreakData {
