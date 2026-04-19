@@ -1,13 +1,24 @@
-import { Link, useLocation } from "react-router-dom";
-import { Moon, Sun, Home } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Moon, Sun, Home, LogOut } from "lucide-react";
 import { motion } from "framer-motion";
 import logo from "@/assets/jannahpath-logo.png";
 import { useTheme } from "@/hooks/useTheme";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 const Navbar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const { session, signOut } = useAuth();
   const isHome = location.pathname === "/";
+  const isAuth = location.pathname === "/auth";
+
+  const handleLogout = async () => {
+    await signOut();
+    toast.success("Signed out");
+    navigate("/auth", { replace: true });
+  };
 
   return (
     <motion.nav
@@ -17,14 +28,14 @@ const Navbar = () => {
     >
       <div className="container mx-auto px-4 flex items-center justify-between h-14">
         <Link to="/" className="flex items-center gap-2">
-          <img src={logo} alt="JannahPath" className="h-8 w-8 object-contain" />
+          <img src={logo} alt="JannahPath" className="h-8 w-8 object-contain rounded-lg" />
           <span className="font-quicksand font-bold text-lg text-gradient-islamic">
             JannahPath
           </span>
         </Link>
 
         <div className="flex items-center gap-2">
-          {!isHome && (
+          {!isHome && !isAuth && (
             <Link
               to="/"
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
@@ -40,6 +51,16 @@ const Navbar = () => {
           >
             {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
           </button>
+          {session && !isAuth && (
+            <button
+              onClick={handleLogout}
+              className="p-2 rounded-xl text-muted-foreground hover:bg-muted hover:text-destructive transition-all"
+              title="Sign out"
+              aria-label="Sign out"
+            >
+              <LogOut size={16} />
+            </button>
+          )}
         </div>
       </div>
     </motion.nav>
