@@ -1,9 +1,20 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, RotateCcw, Target, Play, Pause, Trophy, Star } from "lucide-react";
+import { ArrowLeft, RotateCcw, Target, Play, Pause, Trophy, Star, Plus, Trash2, Coins } from "lucide-react";
+import confetti from "canvas-confetti";
 import FloatingDecorations from "@/components/FloatingDecorations";
-import { addXP, recordActivity, checkDhikrAchievements, getRandomEncouragement } from "@/lib/gamification";
+import {
+  addXP,
+  recordActivity,
+  checkDhikrAchievements,
+  addCoins,
+  getCoins,
+  getCustomDhikr,
+  addCustomDhikr,
+  removeCustomDhikr,
+  type CustomDhikr,
+} from "@/lib/gamification";
 
 const SUGGESTIONS = [
   { text: "أَسْتَغْفِرُ اللَّهَ", transliteration: "Astaghfirullah", meaning: "I seek forgiveness from Allah", benefit: "Purifies the heart and erases sins.", target: 100 },
@@ -14,13 +25,21 @@ const SUGGESTIONS = [
   { text: "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ", transliteration: "SubhanAllahi wa bihamdihi", meaning: "Glory and praise be to Allah", benefit: "Sins fall away like leaves.", target: 100 },
   { text: "لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ", transliteration: "La hawla wa la quwwata illa billah", meaning: "No power except with Allah", benefit: "A treasure from treasures of Paradise.", target: 100 },
   { text: "حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ", transliteration: "Hasbunallahu wa ni'mal wakeel", meaning: "Allah is sufficient for us", benefit: "Brings trust and comfort.", target: 33 },
-  { text: "لَا إِلَهَ إِلَّا أَنْتَ سُبْحَانَكَ إِنِّي كُنْتُ مِنَ الظَّالِمِينَ", transliteration: "La ilaha illa anta subhanaka...", meaning: "None worthy of worship but You...", benefit: "Dua of Yunus (AS) — relieves distress.", target: 33 },
-  { text: "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ سُبْحَانَ اللَّهِ الْعَظِيمِ", transliteration: "SubhanAllahi wa bihamdihi, SubhanAllahil Azeem", meaning: "Glory and praise be to Allah the Almighty", benefit: "Light on tongue, heavy on scales.", target: 100 },
 ];
 
 const ENCOURAGEMENT = ["Keep going, Allah loves consistency 💚", "You're doing great! 🌙", "Every count matters ✨", "SubhanAllah, keep it up! 🤲"];
 const NEAR_END = ["Almost there! 🎉", "Just a few more! 💫", "MashaAllah, nearly done! ✨"];
 const MILESTONES = [100, 200, 300, 500, 1000];
+
+// Glowing color cycle for the progress ring
+const RING_COLORS = [
+  "hsl(48, 95%, 55%)",   // yellow
+  "hsl(140, 65%, 45%)",  // green
+  "hsl(210, 80%, 55%)",  // blue
+  "hsl(275, 70%, 55%)",  // purple
+  "hsl(330, 75%, 60%)",  // pink
+  "hsl(25, 60%, 45%)",   // brown
+];
 
 interface ActiveSession {
   id: string;
@@ -88,6 +107,18 @@ const TasbeehPage = () => {
   const [todayRecords, setTodayRecords] = useState<TasbeehRecord[]>(loadTodayRecords);
   const [customDhikrName, setCustomDhikrName] = useState("");
   const [customTarget, setCustomTarget] = useState("");
+  const [customDhikrList, setCustomDhikrList] = useState<CustomDhikr[]>(getCustomDhikr);
+
+  // Add custom dhikr modal state
+  const [addOpen, setAddOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newArabic, setNewArabic] = useState("");
+  const [newTarget, setNewTarget] = useState("100");
+
+  // Live coin counter
+  const [coins, setCoins] = useState<number>(getCoins);
+  const [showReward, setShowReward] = useState<{ amount: number; message: string } | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   const activeSession = sessions.find(s => s.id === activeId);
   const pausedSessions = sessions.filter(s => s.status === "paused");
@@ -98,6 +129,9 @@ const TasbeehPage = () => {
   }, [todayRecords]);
 
   useEffect(() => { saveSessions(sessions); }, [sessions]);
+
+  // Color of the progress ring based on count
+  const ringColor = activeSession ? RING_COLORS[activeSession.count % RING_COLORS.length] : RING_COLORS[0];
 
   const startSession = (target: number, name?: string) => {
     const updated = sessions.map(s => s.status === "active" ? { ...s, status: "paused" as const } : s);
@@ -133,21 +167,38 @@ const TasbeehPage = () => {
     checkDhikrAchievements(c);
   };
 
+  const fireConfetti = () => {
+    const colors = ["#facc15", "#22c55e", "#3b82f6", "#a855f7", "#ec4899"];
+    confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 }, colors, scalar: 0.9 });
+    setTimeout(() => confetti({ particleCount: 60, spread: 100, origin: { y: 0.6 }, colors, scalar: 0.7 }), 200);
+  };
+
   const handleCount = useCallback(() => {
     if (!activeSession || activeSession.status !== "active") return;
     const next = activeSession.count + 1;
     const completed = next >= activeSession.target;
     setSessions(prev => prev.map(s => s.id === activeSession.id ? { ...s, count: next, status: completed ? "completed" as const : "active" as const } : s));
+
+    // +1 coin per dhikr
+    setCoins(addCoins(1));
+
     if (completed) {
       saveTodayRecord({ dhikrName: activeSession.dhikrName, target: activeSession.target, count: next, completed: true, timestamp: Date.now() });
       setTodayRecords(loadTodayRecords());
       checkMilestones(activeSession.dhikrName, next);
       addXP(5);
       recordActivity("dhikr");
+      fireConfetti();
+      setShowReward({ amount: next, message: "MashaAllah! Session complete 🎉" });
+      setTimeout(() => setShowReward(null), 2400);
       setTimeout(() => {
         setSessions(prev => prev.filter(s => s.id !== activeSession.id));
         setActiveId(null);
-      }, 2000);
+      }, 2200);
+    } else if (next % 100 === 0) {
+      // Bonus reward popup every 100
+      setShowReward({ amount: 100, message: `+100 dhikr 🪙 ${next} total` });
+      setTimeout(() => setShowReward(null), 1500);
     }
   }, [activeSession]);
 
@@ -164,6 +215,21 @@ const TasbeehPage = () => {
     if (activeId === id) setActiveId(null);
   };
 
+  const handleAddCustomDhikr = () => {
+    const name = newName.trim();
+    const t = parseInt(newTarget, 10);
+    if (!name || !t || t <= 0) return;
+    const item = addCustomDhikr({ name, arabic: newArabic.trim() || undefined, target: t });
+    setCustomDhikrList((prev) => [...prev, item]);
+    setNewName(""); setNewArabic(""); setNewTarget("100");
+    setAddOpen(false);
+  };
+
+  const handleDeleteCustom = (id: string) => {
+    removeCustomDhikr(id);
+    setCustomDhikrList(getCustomDhikr());
+  };
+
   const progress = activeSession ? Math.min(100, (activeSession.count / activeSession.target) * 100) : 0;
   const remaining = activeSession ? Math.max(0, activeSession.target - activeSession.count) : 0;
   const isCompleted = activeSession?.status === "completed";
@@ -177,6 +243,20 @@ const TasbeehPage = () => {
   return (
     <div className="relative min-h-screen pb-20">
       <FloatingDecorations />
+
+      {/* Coin counter — top right floating */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="fixed top-16 right-4 z-30 glass-card rounded-full px-3 py-1.5 flex items-center gap-1.5 shadow-md border border-islamic-gold/30"
+        style={{ boxShadow: "0 0 16px hsl(45, 90%, 55% / 0.25)" }}
+      >
+        <Coins size={14} className="text-islamic-gold" />
+        <motion.span key={coins} initial={{ scale: 1.3 }} animate={{ scale: 1 }} className="text-xs font-bold tabular-nums">
+          {coins.toLocaleString()}
+        </motion.span>
+      </motion.div>
+
       <div className="container mx-auto px-4 py-6 relative z-10 max-w-lg">
         <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors">
           <ArrowLeft size={18} />
@@ -185,8 +265,23 @@ const TasbeehPage = () => {
 
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-6">
           <h1 className="text-3xl font-bold text-gradient-islamic mb-2">📿 Tasbeeh Counter</h1>
-          <p className="text-muted-foreground text-sm">Count your dhikr with peace and focus</p>
+          <p className="text-muted-foreground text-sm">Each dhikr earns 1 coin 🪙</p>
         </motion.div>
+
+        {/* Reward popup */}
+        <AnimatePresence>
+          {showReward && (
+            <motion.div
+              initial={{ opacity: 0, y: -20, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.9 }}
+              className="fixed top-20 left-1/2 -translate-x-1/2 z-40 glass-card rounded-2xl px-5 py-3 shadow-xl border border-islamic-gold/40"
+              style={{ boxShadow: "0 0 28px hsl(45, 90%, 55% / 0.4)" }}
+            >
+              <p className="text-sm font-bold text-center">{showReward.message}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Paused Sessions */}
         {pausedSessions.length > 0 && (
@@ -227,14 +322,27 @@ const TasbeehPage = () => {
                 <motion.div initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} className="text-4xl mb-4">🎉✨🤲</motion.div>
               )}
               <motion.button
+                ref={buttonRef}
                 onClick={handleCount}
                 disabled={isCompleted}
                 whileTap={{ scale: 0.92 }}
-                className={`relative w-44 h-44 sm:w-52 sm:h-52 rounded-full flex items-center justify-center shadow-xl transition-all ${isCompleted ? "glow-gold" : "glass-card hover:shadow-2xl active:shadow-inner"}`}
+                animate={{ boxShadow: `0 0 32px ${ringColor}55, 0 0 64px ${ringColor}33` }}
+                transition={{ duration: 0.3 }}
+                className={`relative w-44 h-44 sm:w-52 sm:h-52 rounded-full flex items-center justify-center transition-all bg-card border border-border`}
+                style={{ boxShadow: `0 0 32px ${ringColor}55, 0 0 64px ${ringColor}33` }}
               >
                 <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 100 100">
                   <circle cx="50" cy="50" r="45" fill="none" stroke="hsl(var(--muted))" strokeWidth="4" />
-                  <motion.circle cx="50" cy="50" r="45" fill="none" stroke="hsl(var(--islamic-gold))" strokeWidth="4" strokeLinecap="round" initial={false} animate={{ strokeDasharray: `${(progress / 100) * 283} 283` }} transition={{ duration: 0.3 }} />
+                  <motion.circle
+                    cx="50" cy="50" r="45" fill="none"
+                    stroke={ringColor}
+                    strokeWidth="5"
+                    strokeLinecap="round"
+                    initial={false}
+                    animate={{ strokeDasharray: `${(progress / 100) * 283} 283` }}
+                    transition={{ duration: 0.3 }}
+                    style={{ filter: `drop-shadow(0 0 6px ${ringColor})` }}
+                  />
                 </svg>
                 <div className="text-center z-10">
                   <motion.span key={activeSession.count} initial={{ scale: 1.3 }} animate={{ scale: 1 }} className="text-4xl sm:text-5xl font-bold block">{activeSession.count}</motion.span>
@@ -273,13 +381,58 @@ const TasbeehPage = () => {
 
           {/* Quick start */}
           <div className="space-y-2">
-            <p className="text-sm font-semibold text-center text-muted-foreground">Quick Start</p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-muted-foreground">Quick Start</p>
+              <button
+                onClick={() => setAddOpen((o) => !o)}
+                className="text-xs font-medium text-primary flex items-center gap-1 hover:underline"
+              >
+                <Plus size={12} /> Add Custom Dhikr
+              </button>
+            </div>
+
+            {/* Add custom form */}
+            <AnimatePresence>
+              {addOpen && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="glass-card rounded-2xl p-4 space-y-2">
+                    <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Name (e.g. Durood Sharif)" maxLength={50} className="w-full px-3 py-2 rounded-lg bg-background border border-input text-sm" />
+                    <input value={newArabic} onChange={(e) => setNewArabic(e.target.value)} placeholder="Arabic text (optional)" maxLength={200} className="w-full px-3 py-2 rounded-lg bg-background border border-input text-sm arabic-font text-right" dir="rtl" />
+                    <div className="flex gap-2">
+                      <input type="number" value={newTarget} onChange={(e) => setNewTarget(e.target.value)} min={1} max={100000} placeholder="Target count" className="flex-1 px-3 py-2 rounded-lg bg-background border border-input text-sm" />
+                      <button onClick={handleAddCustomDhikr} className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium">Save</button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <div className="grid grid-cols-2 gap-2">
               {SUGGESTIONS.slice(0, 6).map(s => (
                 <button key={s.transliteration} onClick={() => startSession(s.target, s.transliteration)} className="glass-card rounded-xl p-3 text-left hover:scale-[1.02] active:scale-[0.98] transition-transform">
                   <p className="text-xs font-medium">{s.transliteration}</p>
                   <p className="text-[10px] text-muted-foreground">{s.target}×</p>
                 </button>
+              ))}
+              {customDhikrList.map((d) => (
+                <div key={d.id} className="glass-card rounded-xl p-3 text-left flex flex-col gap-1 group relative border border-primary/20">
+                  <button onClick={() => startSession(d.target, d.name)} className="text-left">
+                    <p className="text-xs font-medium truncate">{d.name}</p>
+                    <p className="text-[10px] text-muted-foreground">{d.target}× · custom</p>
+                  </button>
+                  <button
+                    onClick={() => handleDeleteCustom(d.id)}
+                    className="absolute top-1 right-1 p-1 rounded text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                    aria-label="Delete custom dhikr"
+                  >
+                    <Trash2 size={10} />
+                  </button>
+                </div>
               ))}
             </div>
           </div>
