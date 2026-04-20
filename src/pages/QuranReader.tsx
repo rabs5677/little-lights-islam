@@ -77,6 +77,7 @@ const QuranReader = () => {
   const [ayahs, setAyahs] = useState<Ayah[]>([]);
   const [translations, setTranslations] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [showTranslation, setShowTranslation] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [playingAyah, setPlayingAyah] = useState<number | null>(null);
@@ -95,21 +96,28 @@ const QuranReader = () => {
   useEffect(() => {
     const fetchQuran = async () => {
       setLoading(true);
+      setLoadError(null);
       try {
         const [arabicRes, translationRes] = await Promise.all([
           fetch(`https://api.alquran.cloud/v1/juz/${juz}/ar.alafasy`),
           fetch(`https://api.alquran.cloud/v1/juz/${juz}/en.asad`),
         ]);
+        if (!arabicRes.ok) throw new Error(`Arabic fetch failed: ${arabicRes.status}`);
         const arabicData = await arabicRes.json();
-        const translationData = await translationRes.json();
-        if (arabicData.data?.ayahs) setAyahs(arabicData.data.ayahs);
-        if (translationData.data?.ayahs) {
+        const translationData = translationRes.ok ? await translationRes.json() : null;
+        if (arabicData?.data?.ayahs?.length) {
+          setAyahs(arabicData.data.ayahs);
+        } else {
+          throw new Error("No ayahs returned from API");
+        }
+        if (translationData?.data?.ayahs) {
           const transMap: Record<number, string> = {};
           translationData.data.ayahs.forEach((a: any) => { transMap[a.number] = a.text; });
           setTranslations(transMap);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to fetch Quran data:", err);
+        setLoadError(err?.message || "Failed to load Quran data");
       }
       setLoading(false);
     };
@@ -224,8 +232,26 @@ const QuranReader = () => {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20">
+        <div className="flex flex-col items-center justify-center py-20 gap-3">
           <Loader2 className="animate-spin text-primary" size={40} />
+          <p className="text-sm text-muted-foreground">Quran content is loading...</p>
+        </div>
+      ) : ayahs.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 gap-4 px-4 text-center">
+          <BookOpen className="text-muted-foreground" size={48} />
+          <div>
+            <p className="font-semibold mb-1">Unable to load Juz {juz}</p>
+            <p className="text-sm text-muted-foreground max-w-sm">
+              {loadError || "Please check your internet connection and try again."}
+            </p>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="glass-card rounded-xl px-4 py-2 text-sm hover:scale-105 active:scale-95 transition-transform"
+          >
+            Retry
+          </button>
+          <Link to="/quran" className="text-sm text-primary hover:underline">← Back to all Juz</Link>
         </div>
       ) : (
         <>
