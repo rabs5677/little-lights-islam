@@ -167,8 +167,13 @@ const SURAH_DATA = [
 ];
 
 const getReadingStreak = (): number => {
-  const saved = localStorage.getItem("quran-reading-days");
-  const days: string[] = saved ? JSON.parse(saved) : [];
+  let days: string[] = [];
+  try {
+    const saved = localStorage.getItem("quran-reading-days");
+    days = saved ? JSON.parse(saved) : [];
+  } catch {
+    days = [];
+  }
   if (days.length === 0) return 0;
   let streak = 0;
   const d = new Date();
@@ -187,8 +192,12 @@ const QuranPage = () => {
   const [searchMode, setSearchMode] = useState<"juz" | "surah">("juz");
 
   const bookmark: QuranBookmark | null = (() => {
-    const saved = localStorage.getItem("quran-bookmark-v2");
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem("quran-bookmark-v2");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
   })();
 
   const streak = getReadingStreak();
