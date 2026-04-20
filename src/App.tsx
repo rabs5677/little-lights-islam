@@ -15,10 +15,7 @@ import CycleTracker from "./pages/CycleTracker";
 import QiblaPage from "./pages/QiblaPage";
 import LearnIslamPage from "./pages/LearnIslamPage";
 import NotFound from "./pages/NotFound";
-import AuthPage from "./pages/AuthPage";
 import Navbar from "./components/Navbar";
-import ProtectedRoute from "./components/ProtectedRoute";
-import { AuthProvider } from "./hooks/useAuth";
 import { useRecentPage } from "./hooks/useRecentPage";
 
 const queryClient = new QueryClient();
@@ -30,29 +27,25 @@ const AppContent = () => {
       <Navbar />
       <main className="pt-16">
         <Routes>
-          {/* Public auth route */}
-          <Route path="/auth" element={<AuthPage />} />
+          <Route path="/" element={<HomePage />} />
+          <Route path="/namaz" element={<Index />} />
 
-          {/* Protected app routes */}
-          <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
-          <Route path="/namaz" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+          <Route path="/dua" element={<DuaPage />} />
+          <Route path="/dua/daily" element={<DailyDuas />} />
+          <Route path="/dua/additional" element={<AdditionalDuas />} />
+          <Route path="/dua/tasbeeh" element={<TasbeehPage />} />
 
-          <Route path="/dua" element={<ProtectedRoute><DuaPage /></ProtectedRoute>} />
-          <Route path="/dua/daily" element={<ProtectedRoute><DailyDuas /></ProtectedRoute>} />
-          <Route path="/dua/additional" element={<ProtectedRoute><AdditionalDuas /></ProtectedRoute>} />
-          <Route path="/dua/tasbeeh" element={<ProtectedRoute><TasbeehPage /></ProtectedRoute>} />
+          <Route path="/tasbeeh" element={<TasbeehPage />} />
 
-          <Route path="/tasbeeh" element={<ProtectedRoute><TasbeehPage /></ProtectedRoute>} />
+          <Route path="/quran" element={<QuranPage />} />
+          <Route path="/quran/:juzNumber" element={<QuranReader />} />
 
-          <Route path="/quran" element={<ProtectedRoute><QuranPage /></ProtectedRoute>} />
-          <Route path="/quran/:juzNumber" element={<ProtectedRoute><QuranReader /></ProtectedRoute>} />
+          <Route path="/qibla" element={<QiblaPage />} />
 
-          <Route path="/qibla" element={<ProtectedRoute><QiblaPage /></ProtectedRoute>} />
+          <Route path="/learn" element={<LearnIslamPage />} />
 
-          <Route path="/learn" element={<ProtectedRoute><LearnIslamPage /></ProtectedRoute>} />
-
-          <Route path="/cycle" element={<ProtectedRoute><CycleTracker /></ProtectedRoute>} />
-          <Route path="/care" element={<ProtectedRoute><CycleTracker /></ProtectedRoute>} />
+          <Route path="/cycle" element={<CycleTracker />} />
+          <Route path="/care" element={<CycleTracker />} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>
@@ -67,9 +60,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
+        <AppContent />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
