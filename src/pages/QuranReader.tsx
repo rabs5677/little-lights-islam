@@ -96,21 +96,28 @@ const QuranReader = () => {
   useEffect(() => {
     const fetchQuran = async () => {
       setLoading(true);
+      setLoadError(null);
       try {
         const [arabicRes, translationRes] = await Promise.all([
           fetch(`https://api.alquran.cloud/v1/juz/${juz}/ar.alafasy`),
           fetch(`https://api.alquran.cloud/v1/juz/${juz}/en.asad`),
         ]);
+        if (!arabicRes.ok) throw new Error(`Arabic fetch failed: ${arabicRes.status}`);
         const arabicData = await arabicRes.json();
-        const translationData = await translationRes.json();
-        if (arabicData.data?.ayahs) setAyahs(arabicData.data.ayahs);
-        if (translationData.data?.ayahs) {
+        const translationData = translationRes.ok ? await translationRes.json() : null;
+        if (arabicData?.data?.ayahs?.length) {
+          setAyahs(arabicData.data.ayahs);
+        } else {
+          throw new Error("No ayahs returned from API");
+        }
+        if (translationData?.data?.ayahs) {
           const transMap: Record<number, string> = {};
           translationData.data.ayahs.forEach((a: any) => { transMap[a.number] = a.text; });
           setTranslations(transMap);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to fetch Quran data:", err);
+        setLoadError(err?.message || "Failed to load Quran data");
       }
       setLoading(false);
     };
