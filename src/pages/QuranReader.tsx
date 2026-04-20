@@ -26,13 +26,41 @@ interface QuranBookmark {
 
 const AYAHS_PER_PAGE = 15;
 
+const FALLBACK_AYAHS: Ayah[] = [
+  { number: 1, numberInSurah: 1, text: "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ", surah: { englishName: "Al-Fatiha", name: "الفاتحة", number: 1 } },
+  { number: 2, numberInSurah: 2, text: "ٱلْحَمْدُ لِلَّهِ رَبِّ ٱلْعَٰلَمِينَ", surah: { englishName: "Al-Fatiha", name: "الفاتحة", number: 1 } },
+  { number: 3, numberInSurah: 3, text: "ٱلرَّحْمَٰنِ ٱلرَّحِيمِ", surah: { englishName: "Al-Fatiha", name: "الفاتحة", number: 1 } },
+  { number: 4, numberInSurah: 4, text: "مَٰلِكِ يَوْمِ ٱلدِّينِ", surah: { englishName: "Al-Fatiha", name: "الفاتحة", number: 1 } },
+  { number: 5, numberInSurah: 5, text: "إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ", surah: { englishName: "Al-Fatiha", name: "الفاتحة", number: 1 } },
+  { number: 6, numberInSurah: 6, text: "ٱهْدِنَا ٱلصِّرَٰطَ ٱلْمُسْتَقِيمَ", surah: { englishName: "Al-Fatiha", name: "الفاتحة", number: 1 } },
+  { number: 7, numberInSurah: 7, text: "صِرَٰطَ ٱلَّذِينَ أَنْعَمْتَ عَلَيْهِمْ غَيْرِ ٱلْمَغْضُوبِ عَلَيْهِمْ وَلَا ٱلضَّالِّينَ", surah: { englishName: "Al-Fatiha", name: "الفاتحة", number: 1 } },
+];
+
+const FALLBACK_TRANSLATIONS: Record<number, string> = {
+  1: "In the name of Allah, the Most Compassionate, the Most Merciful.",
+  2: "All praise is for Allah—Lord of all worlds.",
+  3: "The Most Compassionate, Most Merciful,",
+  4: "Master of the Day of Judgment.",
+  5: "You alone we worship and You alone we ask for help.",
+  6: "Guide us along the Straight Path,",
+  7: "the Path of those You have blessed—not those You are displeased with, or those who are astray.",
+};
+
+const safeReadStorage = <T,>(key: string, fallback: T): T => {
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? (JSON.parse(saved) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
 const toArabicNum = (n: number) =>
   n.toString().replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[parseInt(d)]);
 
 const recordReadingDay = () => {
   const today = new Date().toISOString().split("T")[0];
-  const saved = localStorage.getItem("quran-reading-days");
-  const days: string[] = saved ? JSON.parse(saved) : [];
+  const days = safeReadStorage<string[]>("quran-reading-days", []);
   if (!days.includes(today)) {
     days.push(today);
     if (days.length > 365) days.shift();
@@ -85,10 +113,7 @@ const QuranReader = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  const [bookmark, setBookmark] = useState<QuranBookmark | null>(() => {
-    const saved = localStorage.getItem("quran-bookmark-v2");
-    return saved ? JSON.parse(saved) : null;
-  });
+  const [bookmark, setBookmark] = useState<QuranBookmark | null>(() => safeReadStorage<QuranBookmark | null>("quran-bookmark-v2", null));
 
   const isBookmarkedJuz = bookmark?.juz === juz;
 
@@ -98,26 +123,41 @@ const QuranReader = () => {
       setLoading(true);
       setLoadError(null);
       try {
-        const [arabicRes, translationRes] = await Promise.all([
-          fetch(`https://api.alquran.cloud/v1/juz/${juz}/ar.alafasy`),
+        const fetchEdition = async (editionIds: string[]) => {
+          for (const edition of editionIds) {
+            const response = await fetch(`https://api.alquran.cloud/v1/juz/${juz}/${edition}`);
+            if (!response.ok) continue;
+            const data = await response.json();
+            const editionAyahs = data?.data?.ayahs;
+            if (Array.isArray(editionAyahs) && editionAyahs.some((ayah: Ayah) => typeof ayah?.text === "string" && ayah.text.trim().length > 0)) {
+              return editionAyahs as Ayah[];
+            }
+          }
+          return null;
+        };
+
+        const [arabicAyahs, translationRes] = await Promise.all([
+          fetchEdition(["quran-uthmani", "quran-uthmani-min", "ar.quran-uthmani"]),
           fetch(`https://api.alquran.cloud/v1/juz/${juz}/en.asad`),
         ]);
-        if (!arabicRes.ok) throw new Error(`Arabic fetch failed: ${arabicRes.status}`);
-        const arabicData = await arabicRes.json();
+
+        if (!arabicAyahs?.length) throw new Error("No Arabic Quran text returned from API");
+
+        setAyahs(arabicAyahs);
+
         const translationData = translationRes.ok ? await translationRes.json() : null;
-        if (arabicData?.data?.ayahs?.length) {
-          setAyahs(arabicData.data.ayahs);
-        } else {
-          throw new Error("No ayahs returned from API");
-        }
         if (translationData?.data?.ayahs) {
           const transMap: Record<number, string> = {};
           translationData.data.ayahs.forEach((a: any) => { transMap[a.number] = a.text; });
           setTranslations(transMap);
+        } else {
+          setTranslations({});
         }
       } catch (err: any) {
         console.error("Failed to fetch Quran data:", err);
         setLoadError(err?.message || "Failed to load Quran data");
+        setAyahs(FALLBACK_AYAHS);
+        setTranslations(FALLBACK_TRANSLATIONS);
       }
       setLoading(false);
     };
