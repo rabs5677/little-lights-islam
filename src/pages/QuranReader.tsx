@@ -77,6 +77,7 @@ const QuranReader = () => {
   const [ayahs, setAyahs] = useState<Ayah[]>([]);
   const [translations, setTranslations] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [showTranslation, setShowTranslation] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [playingAyah, setPlayingAyah] = useState<number | null>(null);
