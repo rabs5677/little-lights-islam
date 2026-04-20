@@ -232,8 +232,26 @@ const QuranReader = () => {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20">
+        <div className="flex flex-col items-center justify-center py-20 gap-3">
           <Loader2 className="animate-spin text-primary" size={40} />
+          <p className="text-sm text-muted-foreground">Quran content is loading...</p>
+        </div>
+      ) : ayahs.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 gap-4 px-4 text-center">
+          <BookOpen className="text-muted-foreground" size={48} />
+          <div>
+            <p className="font-semibold mb-1">Unable to load Juz {juz}</p>
+            <p className="text-sm text-muted-foreground max-w-sm">
+              {loadError || "Please check your internet connection and try again."}
+            </p>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="glass-card rounded-xl px-4 py-2 text-sm hover:scale-105 active:scale-95 transition-transform"
+          >
+            Retry
+          </button>
+          <Link to="/quran" className="text-sm text-primary hover:underline">← Back to all Juz</Link>
         </div>
       ) : (
         <>
